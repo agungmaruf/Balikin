@@ -178,11 +178,12 @@
     html.dark .hero-notch { background: radial-gradient(circle at top left, transparent 92px, #121214 92px) !important; }
   }
 
-  html.dark #panduan, html.dark #upload, html.dark #privasi { border-color: rgba(255,255,255,0.08) !important; }
+  html.dark #panduan, html.dark #upload, html.dark #privasi, html.dark #kenapa { border-color: rgba(255,255,255,0.08) !important; }
   html.dark #upload { background: #17171A !important; }
 
   html.dark #panduan [class*="bg-surface"],
-  html.dark #upload [class*="bg-surface"] { background: #1C1C20 !important; }
+  html.dark #upload [class*="bg-surface"],
+  html.dark #kenapa [class*="bg-surface"] { background: #1C1C20 !important; }
 
   html.dark #panduan [class*="bg-white"],
   html.dark #upload [class*="bg-white"],
@@ -191,18 +192,27 @@
   html.dark #panduan [class*="border-line"],
   html.dark #upload [class*="border-line"],
   html.dark #installBanner [class*="border-line"],
+  html.dark #kenapa [class*="border-line"],
   html.dark #panduan [class*="divide-line"] > *,
   html.dark #upload [class*="divide-line"] > * { border-color: rgba(255,255,255,0.08) !important; }
 
   html.dark #panduan [class*="text-ink"],
   html.dark #upload [class*="text-ink"],
   html.dark #privasi [class*="text-ink"],
-  html.dark #installBanner [class*="text-ink"] { color: #F5F5F7 !important; }
+  html.dark #installBanner [class*="text-ink"],
+  html.dark #kenapa [class*="text-ink"] { color: #F5F5F7 !important; }
 
   html.dark #panduan [class*="text-mute"],
   html.dark #upload [class*="text-mute"],
   html.dark #privasi [class*="text-mute"],
-  html.dark #installBanner [class*="text-mute"] { color: rgba(245,245,247,0.55) !important; }
+  html.dark #installBanner [class*="text-mute"],
+  html.dark #kenapa [class*="text-mute"] { color: rgba(245,245,247,0.55) !important; }
+
+  /* Kartu "Balikin" di section #kenapa sengaja tetap gelap (bg-ink) di kedua
+     tema biar kontras sama kartu "Aplikasi Lain" di sebelahnya. Tapi di dark
+     mode, bg-ink (#1A1A1E) nyaris sewarna sama background halaman (#121214),
+     jadi dikasih border tipis biar tetap keliatan sebagai kartu terpisah. */
+  html.dark #kenapa .bg-ink { border: 1px solid rgba(255,255,255,0.12) !important; }
 
   html.dark #upload input,
   html.dark #upload select { background: #1C1C20 !important; color: #F5F5F7 !important; }
@@ -332,6 +342,7 @@
         </div>
       </div>
       <nav class="hidden sm:flex items-center gap-7 text-sm font-medium text-ink/70">
+        <a href="#kenapa" class="hover:text-red focus-ring">Kenapa Balikin</a>
         <a href="#panduan" class="hover:text-red focus-ring">Panduan</a>
         <a href="#upload" class="hover:text-red focus-ring">Upload</a>
         <a href="#privasi" class="hover:text-red focus-ring">Privasi</a>
@@ -441,6 +452,67 @@
         </div>
 
       </div>
+    </div>
+  </section>
+
+  <!-- KENAPA BALIKIN: positioning trust "tanpa password" ditegasin di sini,
+       dibandingin eksplisit sama pola umum aplikasi "cek unfollower" lain
+       yang minta login/password IG. Nggak nyebut nama produk tertentu. -->
+  <section id="kenapa" class="border-b border-line">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-16">
+      <p class="font-mono text-xs uppercase tracking-widest text-red mb-3">#TanpaResiko</p>
+      <h2 class="font-display text-xl sm:text-2xl font-bold mb-2">Kenapa Balikin Beda dari Aplikasi "Cek Unfollower" Lain?</h2>
+      <p class="text-mute max-w-2xl mb-10 text-sm sm:text-base">Banyak aplikasi sejenis minta kamu login pakai akun Instagram — bahkan ada yang minta password langsung. Balikin sengaja dibikin nggak begitu.</p>
+
+      <div class="grid sm:grid-cols-2 gap-5">
+        <!-- Kolom kiri: pola umum kompetitor -->
+        <div class="bg-surface border border-line card-lg p-6">
+          <p class="font-display font-semibold text-sm text-mute mb-5">Kebanyakan Aplikasi Sejenis</p>
+          <ul class="space-y-4 text-sm">
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="text-ink/70">Minta kamu login / masukin email &amp; password Instagram langsung ke aplikasinya</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="text-ink/70">Data followers &amp; following kamu dikirim dan disimpan di server pihak ketiga</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="text-ink/70">Berisiko akun ke-hack atau ke-lock Instagram karena dianggap aktivitas otomatis mencurigakan</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="text-ink/70">Klaim bisa "unfollow otomatis" — yang sebenarnya melanggar Terms of Service Instagram</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Kolom kanan: Balikin -->
+        <div class="bg-ink card-lg p-6 relative overflow-hidden">
+          <p class="font-display font-semibold text-sm text-white mb-5">Balikin</p>
+          <ul class="space-y-4 text-sm">
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-mint/20 flex items-center justify-center text-mint text-xs mt-0.5">✓</span>
+              <span class="text-white/85">Nggak pernah minta email atau password Instagram kamu — sama sekali</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-mint/20 flex items-center justify-center text-mint text-xs mt-0.5">✓</span>
+              <span class="text-white/85">Semua proses baca &amp; analisis file jalan 100% di browser kamu, nggak pernah dikirim ke server manapun</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-mint/20 flex items-center justify-center text-mint text-xs mt-0.5">✓</span>
+              <span class="text-white/85">Balikin nggak pernah nyentuh akun Instagram kamu, jadi nggak ada risiko akun kena hack/lock</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-mint/20 flex items-center justify-center text-mint text-xs mt-0.5">✓</span>
+              <span class="text-white/85">Kamu tetap pegang kendali penuh — buka profil &amp; unfollow manual sendiri lewat aplikasi Instagram</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="text-xs text-mute mt-6 max-w-2xl">Cuma pakai fitur ekspor data resmi dari Instagram (Accounts Center → Download your information) — bukan menjelekkan aplikasi tertentu, ini pola umum yang sering ditemui di aplikasi sejenis.</p>
     </div>
   </section>
 
