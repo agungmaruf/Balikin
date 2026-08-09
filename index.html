@@ -57,9 +57,19 @@
 <style>
   * { scroll-behavior: smooth; }
   html, body { background: #FFFFFF; overflow-x: hidden; }
-  .scroll-x-toolbar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .scroll-x-toolbar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scroll-snap-type: x proximity; }
   .scroll-x-toolbar::-webkit-scrollbar { height: 6px; }
   .scroll-x-toolbar::-webkit-scrollbar-thumb { background: #E7E5EA; border-radius: 999px; }
+  .tab-btn { scroll-snap-align: start; }
+
+  /* Petunjuk visual: pudarkan tepi kanan strip tab kategori di layar sempit,
+     supaya jelas kalau masih ada tab lain ("Saling Follow") di luar layar. */
+  @media (max-width: 639px) {
+    .tabs-fade > [role="tablist"] {
+      -webkit-mask-image: linear-gradient(to right, #000 88%, transparent 100%);
+              mask-image: linear-gradient(to right, #000 88%, transparent 100%);
+    }
+  }
   .focus-ring:focus-visible { outline: 2px solid #E4002B; outline-offset: 3px; }
 
   /* Corporate-rounded surfaces */
@@ -561,22 +571,34 @@
           </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
-            <!-- Scroll horizontal di layar sempit, biar label panjang nggak
-                 patah ke 2 baris dan bikin pill-nya jadi blob raksasa. -->
-            <div role="tablist" class="scroll-x-toolbar inline-flex bg-white border border-line rounded-full p-1 max-w-full">
-              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
-              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
-              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
-            </div>
-            <div role="tablist" aria-label="Tampilan" class="inline-flex bg-white border border-line rounded-full p-1 shrink-0 self-start">
-              <button id="viewToggleList" class="view-toggle-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-view="list" aria-selected="true">List</button>
-              <button id="viewToggleSwipe" class="view-toggle-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-view="swipe" aria-selected="false">Swipe</button>
+        <div class="mb-5">
+          <!-- Kategori: scroll horizontal dengan fade di tepi kanan sebagai
+               petunjuk visual kalau masih ada tab lain (mis. "Saling Follow"). -->
+          <div class="tabs-fade mb-2">
+            <div role="tablist" class="scroll-x-toolbar flex gap-1 bg-white border border-line rounded-full p-1 w-max max-w-full">
+              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-3.5 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
+              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-3.5 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
+              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-3.5 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
             </div>
           </div>
-          <div id="listToolsGroup" class="scroll-x-toolbar flex sm:flex-wrap items-center gap-2 max-w-full">
-            <select id="filterSelect" class="focus-ring shrink-0 bg-white border border-line rounded-full px-3 py-2 text-sm">
+
+          <!-- Tampilan (List/Swipe) + pencarian: satu baris, selalu penuh
+               kelihatan, nggak perlu digeser buat nemuin kolom cari. -->
+          <div class="flex items-center gap-2 mb-2">
+            <div role="tablist" aria-label="Tampilan" class="inline-flex bg-white border border-line rounded-full p-1 shrink-0">
+              <button id="viewToggleList" class="view-toggle-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-3.5 py-2 rounded-full transition" data-view="list" aria-selected="true">List</button>
+              <button id="viewToggleSwipe" class="view-toggle-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-3.5 py-2 rounded-full transition" data-view="swipe" aria-selected="false">Swipe</button>
+            </div>
+            <div class="relative flex-1 min-w-0">
+              <svg class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="searchInput" type="text" placeholder="Cari username…" class="focus-ring w-full bg-white border border-line rounded-full pl-10 pr-4 py-2.5 text-sm placeholder:text-mute/50" />
+            </div>
+          </div>
+
+          <!-- Filter, urutan & aksi: bertumpuk penuh di mobile (nggak ada
+               yang kepotong di luar layar), sejajar lagi mulai sm: -->
+          <div id="listToolsGroup" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <select id="filterSelect" class="focus-ring w-full sm:w-auto shrink-0 bg-white border border-line rounded-full px-3.5 py-2.5 sm:py-2 text-sm">
               <option value="hide_unfollow">Sembunyikan yang sudah Unfollow</option>
               <option value="all">Tampilkan Semua</option>
               <option value="undecided">Belum Direview</option>
@@ -584,21 +606,33 @@
               <option value="keep">Hanya Ditandai Keep</option>
               <option value="later">Hanya Nanti</option>
             </select>
-            <input id="searchInput" type="text" placeholder="Cari username…" class="focus-ring shrink-0 bg-white border border-line rounded-full px-4 py-2 text-sm w-44 sm:w-56 placeholder:text-mute/50" />
-            <select id="sortSelect" class="focus-ring shrink-0 bg-white border border-line rounded-full px-3 py-2 text-sm">
+            <select id="sortSelect" class="focus-ring w-full sm:w-auto shrink-0 bg-white border border-line rounded-full px-3.5 py-2.5 sm:py-2 text-sm">
               <option value="newest">Terbaru diikuti</option>
               <option value="oldest">Terlama diikuti</option>
               <option value="az">A–Z</option>
             </select>
-            <button id="copyList" class="focus-ring shrink-0 whitespace-nowrap text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Salin</button>
-            <button id="exportCsv" class="focus-ring shrink-0 whitespace-nowrap text-sm font-medium bg-red text-white px-4 py-2 rounded-full hover:bg-red-dark transition">Ekspor CSV</button>
-            <button id="clearDataBtn2" class="focus-ring shrink-0 whitespace-nowrap text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Hapus Data</button>
+            <div class="flex items-center gap-2">
+              <button id="copyList" class="focus-ring flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-sm font-medium bg-white border border-line text-ink px-4 py-2.5 sm:py-2 rounded-full hover:border-red hover:text-red transition">
+                <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                Salin
+              </button>
+              <button id="exportCsv" class="focus-ring flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-sm font-medium bg-red text-white px-4 py-2.5 sm:py-2 rounded-full hover:bg-red-dark transition">
+                <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                Ekspor CSV
+              </button>
+            </div>
+            <!-- Aksi destruktif sengaja dibedain gayanya (teks polos, bukan
+                 pill border) biar nggak terlihat sejajar/sama pentingnya
+                 dengan Salin & Ekspor CSV. -->
+            <button id="clearDataBtn2" class="focus-ring inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-sm font-medium text-mute px-3 py-2.5 sm:py-2 rounded-full hover:text-red transition sm:ml-auto">
+              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              Hapus Data
+            </button>
           </div>
         </div>
 
-
         <div class="flex items-start gap-3 bg-amber/10 border border-amber/25 card p-4 text-sm text-ink/75 mb-5">
-          <span class="text-amber font-semibold">i</span>
+          <svg class="shrink-0 w-4 h-4 mt-0.5 text-amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
           <p>Data ekspor Instagram tidak menyertakan status aktif/nonaktif akun. Klik "Buka Profil" untuk memeriksa secara manual — apabila muncul "Halaman tidak tersedia", akun tersebut kemungkinan sudah nonaktif atau dihapus.</p>
         </div>
 
