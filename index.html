@@ -561,20 +561,22 @@
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div class="flex flex-wrap items-center gap-2">
-            <div role="tablist" class="inline-flex bg-white border border-line rounded-full p-1">
-              <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
-              <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
-              <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+            <!-- Scroll horizontal di layar sempit, biar label panjang nggak
+                 patah ke 2 baris dan bikin pill-nya jadi blob raksasa. -->
+            <div role="tablist" class="scroll-x-toolbar inline-flex bg-white border border-line rounded-full p-1 max-w-full">
+              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
+              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
+              <button class="tab-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
             </div>
-            <div role="tablist" aria-label="Tampilan" class="inline-flex bg-white border border-line rounded-full p-1">
-              <button id="viewToggleList" class="view-toggle-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-view="list" aria-selected="true">List</button>
-              <button id="viewToggleSwipe" class="view-toggle-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-view="swipe" aria-selected="false">Swipe</button>
+            <div role="tablist" aria-label="Tampilan" class="inline-flex bg-white border border-line rounded-full p-1 shrink-0 self-start">
+              <button id="viewToggleList" class="view-toggle-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-view="list" aria-selected="true">List</button>
+              <button id="viewToggleSwipe" class="view-toggle-btn focus-ring shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition" data-view="swipe" aria-selected="false">Swipe</button>
             </div>
           </div>
-          <div id="listToolsGroup" class="flex flex-wrap items-center gap-2 max-w-full">
-            <select id="filterSelect" class="focus-ring bg-white border border-line rounded-full px-3 py-2 text-sm">
+          <div id="listToolsGroup" class="scroll-x-toolbar flex sm:flex-wrap items-center gap-2 max-w-full">
+            <select id="filterSelect" class="focus-ring shrink-0 bg-white border border-line rounded-full px-3 py-2 text-sm">
               <option value="hide_unfollow">Sembunyikan yang sudah Unfollow</option>
               <option value="all">Tampilkan Semua</option>
               <option value="undecided">Belum Direview</option>
@@ -582,17 +584,18 @@
               <option value="keep">Hanya Ditandai Keep</option>
               <option value="later">Hanya Nanti</option>
             </select>
-            <input id="searchInput" type="text" placeholder="Cari username…" class="focus-ring bg-white border border-line rounded-full px-4 py-2 text-sm w-44 sm:w-56 placeholder:text-mute/50" />
-            <select id="sortSelect" class="focus-ring bg-white border border-line rounded-full px-3 py-2 text-sm">
+            <input id="searchInput" type="text" placeholder="Cari username…" class="focus-ring shrink-0 bg-white border border-line rounded-full px-4 py-2 text-sm w-44 sm:w-56 placeholder:text-mute/50" />
+            <select id="sortSelect" class="focus-ring shrink-0 bg-white border border-line rounded-full px-3 py-2 text-sm">
               <option value="newest">Terbaru diikuti</option>
               <option value="oldest">Terlama diikuti</option>
               <option value="az">A–Z</option>
             </select>
-            <button id="copyList" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Salin</button>
-            <button id="exportCsv" class="focus-ring text-sm font-medium bg-red text-white px-4 py-2 rounded-full hover:bg-red-dark transition">Ekspor CSV</button>
-            <button id="clearDataBtn2" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Hapus Data</button>
+            <button id="copyList" class="focus-ring shrink-0 whitespace-nowrap text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Salin</button>
+            <button id="exportCsv" class="focus-ring shrink-0 whitespace-nowrap text-sm font-medium bg-red text-white px-4 py-2 rounded-full hover:bg-red-dark transition">Ekspor CSV</button>
+            <button id="clearDataBtn2" class="focus-ring shrink-0 whitespace-nowrap text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Hapus Data</button>
           </div>
         </div>
+
 
         <div class="flex items-start gap-3 bg-amber/10 border border-amber/25 card p-4 text-sm text-ink/75 mb-5">
           <span class="text-amber font-semibold">i</span>
