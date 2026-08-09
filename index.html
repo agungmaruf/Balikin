@@ -644,7 +644,7 @@
              Aksi tandai (unfollow/keep/nanti) cuma relevan di tab "Tidak
              Follow Balik" karena itu satu-satunya tab yang punya swipe
              decision; tab lain cuma dapat aksi Salin. -->
-        <div id="bulkToolbar" class="hidden sticky top-2 z-10 flex flex-wrap items-center gap-2 bg-ink text-white card px-4 py-2.5 mb-2 text-sm">
+        <div id="bulkToolbar" class="hidden sticky top-2 z-10 flex flex-wrap items-center gap-2 bg-red text-white card px-4 py-2.5 mb-2 text-sm shadow-lg shadow-red/20">
           <label class="flex items-center gap-2 cursor-pointer shrink-0">
             <input id="bulkSelectAllChk" type="checkbox" class="focus-ring w-4 h-4 rounded accent-red" />
             <span id="bulkCount" class="font-medium">0 dipilih</span>
@@ -1743,7 +1743,7 @@
 
   function clearSelection() {
     selectedKeys.clear();
-    updateBulkToolbar();
+    renderList(); // re-render biar checkbox di tiap row ikut ke-uncheck secara visual
   }
 
   function updateBulkToolbar() {
