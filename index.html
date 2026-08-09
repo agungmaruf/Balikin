@@ -482,7 +482,13 @@
         <button id="clearDataBtn" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Hapus Data</button>
       </div>
 
-      <div id="parseState" class="mt-4 text-sm text-mute hidden"></div>
+      <div id="parseState" class="mt-4 flex items-center gap-2.5 text-sm text-mute hidden">
+        <svg id="parseSpinner" class="hidden w-4 h-4 shrink-0 animate-spin text-red" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <span id="parseStateText"></span>
+      </div>
 
       <!-- RESULTS -->
       <div id="results" class="mt-12 hidden">
@@ -816,6 +822,17 @@
   const fileStatus = document.getElementById('fileStatus');
   const fileChips = document.getElementById('fileChips');
   const parseState = document.getElementById('parseState');
+  const parseStateText = document.getElementById('parseStateText');
+  const parseSpinner = document.getElementById('parseSpinner');
+
+  // Tampilkan status parsing file. loading=true nunjukin spinner (dipakai
+  // pas proses zip/json besar masih jalan), loading=false buat hasil akhir
+  // (sukses atau error) supaya spinner nggak muter terus.
+  function setParseState(text, loading) {
+    parseState.classList.remove('hidden');
+    parseStateText.textContent = text;
+    parseSpinner.classList.toggle('hidden', !loading);
+  }
   const resultsEl = document.getElementById('results');
   const listWrap = document.getElementById('listWrap');
   const emptyState = document.getElementById('emptyState');
@@ -953,8 +970,7 @@
       if (followingMap.size === 0 && followersMap.size === 0) return false;
 
       (payload.chips || []).forEach(name => addChip(name));
-      parseState.classList.remove('hidden');
-      parseState.textContent = 'Berhasil dibaca: ' + followingMap.size + ' following, ' + followersMap.size + ' followers.';
+      setParseState('Berhasil dibaca: ' + followingMap.size + ' following, ' + followersMap.size + ' followers.', false);
       restoredNote.classList.remove('hidden');
       computeAndRender();
       return true;
@@ -994,8 +1010,7 @@
   }
 
   async function handleFiles(fileList) {
-    parseState.classList.remove('hidden');
-    parseState.textContent = 'Membaca file…';
+    setParseState('Membaca file…', true);
     restoredNote.classList.add('hidden');
     const files = Array.from(fileList);
     const chipNames = [...fileChips.children].map(c => c.textContent.replace(/^✓\s*/, ''));
@@ -1065,18 +1080,18 @@
 
     if (followingMap.size === 0 && followersMap.size === 0) {
       if (anyZipMissingExport) {
-        parseState.textContent = 'File zip berhasil dibuka, tapi folder "followers_and_following" nggak ketemu di dalamnya. Pastikan ini zip hasil ekspor data Instagram (Pengaturan → Pusat Akun → Unduh informasi kamu), bukan file zip lain.';
+        setParseState('File zip berhasil dibuka, tapi folder "followers_and_following" nggak ketemu di dalamnya. Pastikan ini zip hasil ekspor data Instagram (Pengaturan → Pusat Akun → Unduh informasi kamu), bukan file zip lain.', false);
       } else if (anyUnrecognizedJson) {
-        parseState.textContent = 'File JSON kebaca, tapi isinya nggak dikenali sebagai data following/followers Instagram. Kemungkinan Instagram mengubah format ekspornya, atau file-nya bukan hasil ekspor IG.';
+        setParseState('File JSON kebaca, tapi isinya nggak dikenali sebagai data following/followers Instagram. Kemungkinan Instagram mengubah format ekspornya, atau file-nya bukan hasil ekspor IG.', false);
       } else if (anyBadFormat) {
-        parseState.textContent = 'Ada file yang gagal dibaca — pastikan kamu upload file .zip atau .json hasil ekspor data Instagram, bukan tipe file lain.';
+        setParseState('Ada file yang gagal dibaca — pastikan kamu upload file .zip atau .json hasil ekspor data Instagram, bukan tipe file lain.', false);
       } else {
-        parseState.textContent = 'Belum ada data yang terbaca. Cek lagi file yang kamu upload.';
+        setParseState('Belum ada data yang terbaca. Cek lagi file yang kamu upload.', false);
       }
       return;
     }
 
-    parseState.textContent = 'Berhasil dibaca: ' + followingMap.size + ' following, ' + followersMap.size + ' followers.';
+    setParseState('Berhasil dibaca: ' + followingMap.size + ' following, ' + followersMap.size + ' followers.', false);
     computeAndRender();
     saveToStorage(chipNames);
   }
