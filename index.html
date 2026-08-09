@@ -178,6 +178,43 @@
   #themeToggle .icon-moon { display: none; }
   html.dark #themeToggle .icon-sun { display: none; }
   html.dark #themeToggle .icon-moon { display: inline-flex; }
+
+  /* ===== Swipe Mode ===== */
+  .view-toggle-btn[aria-selected="true"] { color: #FFFFFF; background: #1A1A1E; }
+  .view-toggle-btn[aria-selected="false"] { color: #6B6B75; background: transparent; }
+  html.dark .view-toggle-btn[aria-selected="false"] { color: rgba(245,245,247,0.55) !important; }
+  .swipe-stage { position: relative; height: 340px; touch-action: none; }
+  .swipe-card {
+    position: absolute; inset: 0; margin: auto; width: 100%; max-width: 320px; height: 320px;
+    background: #FFFFFF; border: 1px solid #E7E5EA; border-radius: 1.75rem;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem; text-align: center; cursor: grab; user-select: none;
+    transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s ease;
+  }
+  .swipe-card.dragging { transition: none; cursor: grabbing; }
+  .swipe-card.behind-1 { transform: scale(0.96) translateY(10px); opacity: .7; z-index: 1; }
+  .swipe-card.behind-2 { transform: scale(0.92) translateY(18px); opacity: .4; z-index: 0; }
+  html.dark .swipe-card { background: #1C1C20; border-color: rgba(255,255,255,0.08); }
+  .swipe-avatar {
+    width: 72px; height: 72px; border-radius: 999px; background: #F7F6F8; border: 1px solid #E7E5EA;
+    display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700; font-size: 1.5rem; color: #E4002B; margin-bottom: 1rem;
+  }
+  html.dark .swipe-avatar { background: #121214; border-color: rgba(255,255,255,0.08); }
+  .swipe-stamp {
+    position: absolute; top: 22px; padding: 6px 16px; border: 3px solid; border-radius: 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 0.9rem; letter-spacing: .04em;
+    text-transform: uppercase; opacity: 0; transform: rotate(-14deg);
+  }
+  .swipe-stamp.stamp-unfollow { left: 20px; color: #E4002B; border-color: #E4002B; }
+  .swipe-stamp.stamp-keep { right: 20px; color: #1E8E5A; border-color: #1E8E5A; transform: rotate(14deg); }
+  .swipe-stamp.stamp-later { top: 12px; left: 50%; transform: translateX(-50%); color: #C97A00; border-color: #C97A00; }
+  .decision-tag { font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .decision-tag.unfollow { background: rgba(228,0,43,0.1); color: #E4002B; }
+  .decision-tag.keep { background: rgba(30,142,90,0.1); color: #1E8E5A; }
+  .decision-tag.later { background: rgba(201,122,0,0.1); color: #C97A00; }
+  @media (prefers-reduced-motion: reduce) { .swipe-card { transition: none !important; } }
 </style>
 </head>
 <body class="font-body text-ink antialiased">
@@ -465,12 +502,26 @@
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div role="tablist" class="inline-flex bg-white border border-line rounded-full p-1">
-            <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
-            <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
-            <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
+          <div class="flex flex-wrap items-center gap-2">
+            <div role="tablist" class="inline-flex bg-white border border-line rounded-full p-1">
+              <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
+              <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
+              <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
+            </div>
+            <div role="tablist" aria-label="Tampilan" class="inline-flex bg-white border border-line rounded-full p-1">
+              <button id="viewToggleList" class="view-toggle-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-view="list" aria-selected="true">List</button>
+              <button id="viewToggleSwipe" class="view-toggle-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-view="swipe" aria-selected="false">Swipe</button>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2 max-w-full">
+          <div id="listToolsGroup" class="flex flex-wrap items-center gap-2 max-w-full">
+            <select id="filterSelect" class="focus-ring bg-white border border-line rounded-full px-3 py-2 text-sm">
+              <option value="hide_unfollow">Sembunyikan yang sudah Unfollow</option>
+              <option value="all">Tampilkan Semua</option>
+              <option value="undecided">Belum Direview</option>
+              <option value="unfollow">Hanya Ditandai Unfollow</option>
+              <option value="keep">Hanya Ditandai Keep</option>
+              <option value="later">Hanya Nanti</option>
+            </select>
             <input id="searchInput" type="text" placeholder="Cari username…" class="focus-ring bg-white border border-line rounded-full px-4 py-2 text-sm w-44 sm:w-56 placeholder:text-mute/50" />
             <select id="sortSelect" class="focus-ring bg-white border border-line rounded-full px-3 py-2 text-sm">
               <option value="newest">Terbaru diikuti</option>
@@ -490,13 +541,73 @@
 
         <div id="listWrap" class="divide-y divide-line border border-line card overflow-hidden bg-white"></div>
         <p id="emptyState" class="hidden text-center text-mute py-14 text-sm"></p>
+
+        <!-- SWIPE MODE (inline) -->
+        <div id="swipeInline" class="hidden bg-white border border-line card-lg p-5 sm:p-7">
+          <div class="flex items-start justify-between gap-3 mb-1">
+            <div>
+              <p class="font-display text-base font-semibold">Mode Swipe</p>
+              <p class="text-xs text-mute mt-0.5">Akun yang tidak follow balik kamu</p>
+            </div>
+            <span id="swipeStreak" class="hidden shrink-0 font-mono text-xs bg-amber/10 text-amber px-2.5 py-1 rounded-full">0 hari beruntun</span>
+          </div>
+
+          <p id="swipeProgress" class="font-mono text-xs text-mute mt-4 mb-1">0 dari 0 direview</p>
+          <div class="w-full h-1.5 rounded-full bg-surface overflow-hidden mb-3">
+            <div id="swipeProgressBar" class="h-full bg-red rounded-full transition-all duration-300" style="width:0%"></div>
+          </div>
+
+          <div class="flex items-center gap-2 bg-surface border border-line card p-3 text-xs text-ink/70 mb-4">
+            <span class="text-red font-semibold">🔒</span>
+            <p>Semua keputusan swipe cuma disimpan di browser ini (localStorage). Balikin tidak bisa unfollow otomatis — kamu tetap perlu buka profilnya di Instagram untuk unfollow beneran.</p>
+          </div>
+
+          <!-- Card stack -->
+          <div id="swipeStage" class="swipe-stage"></div>
+
+          <!-- Actions -->
+          <div id="swipeActions" class="flex items-center justify-center gap-3 mt-5">
+            <button id="swipeUndoBtn" aria-label="Undo" title="Undo" disabled class="focus-ring w-11 h-11 rounded-full border border-line flex items-center justify-center text-ink/50 hover:border-ink hover:text-ink transition disabled:opacity-40">↺</button>
+            <button id="swipeUnfollowBtn" aria-label="Tandai unfollow" title="Unfollow" class="focus-ring w-14 h-14 rounded-full border-2 border-red text-red text-xl flex items-center justify-center hover:bg-red hover:text-white transition">✕</button>
+            <button id="swipeLaterBtn" aria-label="Tinjau nanti" title="Nanti" class="focus-ring w-11 h-11 rounded-full border border-amber/50 text-amber flex items-center justify-center hover:bg-amber hover:text-white transition">⏭</button>
+            <button id="swipeKeepBtn" aria-label="Tetap follow" title="Keep" class="focus-ring w-14 h-14 rounded-full border-2 border-mint text-mint text-xl flex items-center justify-center hover:bg-mint hover:text-white transition">✓</button>
+          </div>
+          <p class="text-center text-[11px] text-mute mt-3">Geser kartu ke kiri (unfollow), kanan (keep), atau atas (nanti) — atau pakai tombol / panah keyboard.</p>
+
+          <!-- Recap -->
+          <div id="swipeRecap" class="hidden text-center py-4">
+            <p class="text-3xl mb-2">🎉</p>
+            <p class="font-display text-lg font-bold mb-1">Semua sudah direview!</p>
+            <p class="text-sm text-mute mb-6">Ini rangkuman keputusan kamu.</p>
+            <div class="grid grid-cols-3 gap-2 mb-6">
+              <div class="bg-red/5 border border-red/20 card p-3">
+                <p class="font-mono text-xl font-semibold text-red" id="recapUnfollow">0</p>
+                <p class="text-[11px] text-mute mt-0.5">Unfollow</p>
+              </div>
+              <div class="bg-amber/5 border border-amber/20 card p-3">
+                <p class="font-mono text-xl font-semibold text-amber" id="recapLater">0</p>
+                <p class="text-[11px] text-mute mt-0.5">Nanti</p>
+              </div>
+              <div class="bg-mint/5 border border-mint/20 card p-3">
+                <p class="font-mono text-xl font-semibold text-mint" id="recapKeep">0</p>
+                <p class="text-[11px] text-mute mt-0.5">Keep</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-2">
+              <button id="copyUnfollowListBtn" class="focus-ring text-sm font-medium bg-red text-white px-4 py-2 rounded-full hover:bg-red-dark transition">Salin Daftar Unfollow</button>
+              <button id="exportChecklistBtn" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Ekspor Checklist .txt</button>
+              <button id="resetSwipeBtn" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Ulangi dari Awal</button>
+              <button id="backToListBtn" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Kembali ke List</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- PRIVASI -->
   <section id="privasi" class="border-b border-line">
-    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-16 grid sm:grid-cols-3 gap-8">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-16 grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
       <div>
         <p class="font-display text-base font-semibold mb-1">Tanpa Login</p>
         <p class="text-sm text-mute">Kamu nggak pernah masukin password Instagram di sini. Sistem ini cuma baca file yang kamu upload.</p>
@@ -508,6 +619,10 @@
       <div>
         <p class="font-display text-base font-semibold mb-1">Sumber Resmi</p>
         <p class="text-sm text-mute">Data berasal dari fitur ekspor resmi Instagram, bukan hasil scraping atau otomasi login.</p>
+      </div>
+      <div>
+        <p class="font-display text-base font-semibold mb-1">Keputusan Swipe Tetap Lokal</p>
+        <p class="text-sm text-mute">Pilihan "unfollow / keep / nanti" dari Mode Swipe cuma tersimpan di localStorage browser kamu. Hapus lewat tombol "Hapus Data" kapan saja.</p>
       </div>
     </div>
   </section>
@@ -891,6 +1006,8 @@
     resultsEl.classList.remove('hidden');
     renderList();
     renderCharts(notBack.length, mutual.length);
+    updateFilterVisibility();
+    if (viewMode === 'swipe') startSwipeSession();
 
     // ---- Riwayat / growth banner ----
     const stats = { following: followingMap.size, followers: followersMap.size, mutual: mutual.length, notBack: notBack.length };
@@ -1264,6 +1381,16 @@
     const q = searchInput.value.trim().toLowerCase();
     if (q) rows = rows.filter(r => r.username.toLowerCase().includes(q));
 
+    if (currentTab === 'notback') {
+      const filterVal = filterSelect.value;
+      if (filterVal === 'hide_unfollow') rows = rows.filter(r => getSwipeDecision(r.username) !== 'unfollow');
+      else if (filterVal === 'undecided') rows = rows.filter(r => !getSwipeDecision(r.username));
+      else if (filterVal === 'unfollow') rows = rows.filter(r => getSwipeDecision(r.username) === 'unfollow');
+      else if (filterVal === 'keep') rows = rows.filter(r => getSwipeDecision(r.username) === 'keep');
+      else if (filterVal === 'later') rows = rows.filter(r => getSwipeDecision(r.username) === 'later');
+      // 'all' -> no filtering
+    }
+
     const sort = sortSelect.value;
     rows = rows.slice().sort((a, b) => {
       if (sort === 'az') return a.username.localeCompare(b.username);
@@ -1286,10 +1413,13 @@
       const row = document.createElement('div');
       row.className = 'row-enter flex items-center justify-between gap-4 px-5 py-4 hover:bg-surface transition';
       row.style.animationDelay = (i * 15) + 'ms';
+      const decision = currentTab === 'notback' ? getSwipeDecision(r.username) : null;
+      const tagHtml = decision ? '<span class="decision-tag ' + decision + ' inline-block mt-1">' + SWIPE_TAG_LABEL[decision] + '</span>' : '';
       row.innerHTML =
         '<div class="min-w-0">' +
           '<p class="font-mono text-sm truncate">@' + escapeHtml(r.username) + '</p>' +
           '<p class="text-xs text-mute mt-0.5">Diikuti sejak ' + date + '</p>' +
+          tagHtml +
         '</div>' +
         '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Buka Profil ↗</a>';
       listWrap.appendChild(row);
@@ -1327,6 +1457,305 @@
     }).catch(() => {});
   }
 
+  // ==================== SWIPE MODE ====================
+  const SWIPE_DECISIONS_KEY = 'balikin_swipe_decisions_v1';
+  const SWIPE_STREAK_KEY = 'balikin_swipe_streak_v1';
+  const SWIPE_TAG_LABEL = { unfollow: 'Ditandai: Unfollow', keep: 'Ditandai: Keep', later: 'Ditinjau nanti' };
+
+  let swipeDecisions = {};
+  (function loadSwipeDecisions() {
+    try { swipeDecisions = JSON.parse(localStorage.getItem(SWIPE_DECISIONS_KEY) || '{}'); } catch (e) { swipeDecisions = {}; }
+  })();
+  function saveSwipeDecisions() {
+    try { localStorage.setItem(SWIPE_DECISIONS_KEY, JSON.stringify(swipeDecisions)); } catch (e) {}
+  }
+  function getSwipeDecision(username) {
+    const rec = swipeDecisions[normKey(username)];
+    return rec ? rec.status : null;
+  }
+
+  function bumpSwipeStreak() {
+    const today = new Date().toDateString();
+    let streak = { count: 0, lastDate: null };
+    try { streak = JSON.parse(localStorage.getItem(SWIPE_STREAK_KEY) || 'null') || streak; } catch (e) {}
+    if (streak.lastDate === today) return streak.count;
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    streak.count = (streak.lastDate === yesterday) ? streak.count + 1 : 1;
+    streak.lastDate = today;
+    try { localStorage.setItem(SWIPE_STREAK_KEY, JSON.stringify(streak)); } catch (e) {}
+    return streak.count;
+  }
+  function getSwipeStreak() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SWIPE_STREAK_KEY) || 'null');
+      return s ? s.count : 0;
+    } catch (e) { return 0; }
+  }
+
+  // ---- View mode: 'list' or 'swipe' ----
+  let viewMode = 'list';
+  const viewToggleList = document.getElementById('viewToggleList');
+  const viewToggleSwipe = document.getElementById('viewToggleSwipe');
+  const listToolsGroup = document.getElementById('listToolsGroup');
+  const filterSelect = document.getElementById('filterSelect');
+  const swipeInline = document.getElementById('swipeInline');
+
+  const swipeStage = document.getElementById('swipeStage');
+  const swipeActions = document.getElementById('swipeActions');
+  const swipeRecap = document.getElementById('swipeRecap');
+  const swipeProgress = document.getElementById('swipeProgress');
+  const swipeProgressBar = document.getElementById('swipeProgressBar');
+  const swipeStreakBadge = document.getElementById('swipeStreak');
+  const swipeUndoBtn = document.getElementById('swipeUndoBtn');
+
+  let swipeQueue = [];
+  let swipeIndex = 0;
+  let swipeHistoryStack = []; // for undo: {username, prevStatus}
+
+  function updateFilterVisibility() {
+    if (currentTab === 'notback' && viewMode === 'list') filterSelect.classList.remove('hidden');
+    else filterSelect.classList.add('hidden');
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    viewToggleList.setAttribute('aria-selected', mode === 'list' ? 'true' : 'false');
+    viewToggleSwipe.setAttribute('aria-selected', mode === 'swipe' ? 'true' : 'false');
+    if (mode === 'swipe') {
+      currentTab = 'notback';
+      document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === 'notback' ? 'true' : 'false'));
+      listToolsGroup.classList.add('hidden');
+      listWrap.classList.add('hidden');
+      emptyState.classList.add('hidden');
+      swipeInline.classList.remove('hidden');
+      updateFilterVisibility();
+      startSwipeSession();
+    } else {
+      swipeInline.classList.add('hidden');
+      listToolsGroup.classList.remove('hidden');
+      updateFilterVisibility();
+      renderList();
+    }
+  }
+
+  function buildSwipeQueue() {
+    const rows = (window.__data && window.__data.notback) || [];
+    // Akun yang sudah ditandai "unfollow" nggak perlu direview lagi.
+    return rows.filter(r => getSwipeDecision(r.username) !== 'unfollow');
+  }
+
+  function startSwipeSession() {
+    swipeQueue = buildSwipeQueue();
+    swipeIndex = 0;
+    swipeHistoryStack = [];
+    swipeRecap.classList.add('hidden');
+    swipeActions.classList.remove('hidden');
+    const streakCount = getSwipeStreak();
+    if (streakCount > 0) {
+      swipeStreakBadge.textContent = streakCount + ' hari beruntun';
+      swipeStreakBadge.classList.remove('hidden');
+    } else {
+      swipeStreakBadge.classList.add('hidden');
+    }
+    renderSwipeStage();
+  }
+
+  function updateSwipeProgress() {
+    const total = swipeQueue.length;
+    const done = Math.min(swipeIndex, total);
+    swipeProgress.textContent = done + ' dari ' + total + ' direview';
+    swipeProgressBar.style.width = (total ? (done / total) * 100 : 0) + '%';
+    swipeUndoBtn.disabled = swipeHistoryStack.length === 0;
+  }
+
+  function renderSwipeStage() {
+    updateSwipeProgress();
+    swipeStage.innerHTML = '';
+    if (swipeIndex >= swipeQueue.length) {
+      swipeActions.classList.add('hidden');
+      showSwipeRecap();
+      return;
+    }
+    swipeActions.classList.remove('hidden');
+    swipeRecap.classList.add('hidden');
+    // render up to 3 cards, top one interactive
+    const visible = swipeQueue.slice(swipeIndex, swipeIndex + 3);
+    visible.forEach((r, idx) => {
+      const card = document.createElement('div');
+      card.className = 'swipe-card' + (idx === 1 ? ' behind-1' : idx === 2 ? ' behind-2' : '');
+      const initial = (r.username || '?').trim().charAt(0).toUpperCase();
+      const date = r.timestamp ? new Date(r.timestamp * 1000).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Tanggal tidak diketahui';
+      card.innerHTML =
+        '<span class="swipe-stamp stamp-unfollow">Unfollow</span>' +
+        '<span class="swipe-stamp stamp-keep">Keep</span>' +
+        '<span class="swipe-stamp stamp-later">Nanti</span>' +
+        '<div class="swipe-avatar">' + escapeHtml(initial) + '</div>' +
+        '<p class="font-mono text-base font-semibold truncate max-w-full">@' + escapeHtml(r.username) + '</p>' +
+        '<p class="text-xs text-mute mt-1">Diikuti sejak ' + date + '</p>' +
+        '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring mt-4 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition" onclick="event.stopPropagation()">Buka Profil ↗</a>';
+      swipeStage.appendChild(card);
+      if (idx === 0) attachDrag(card, r);
+    });
+  }
+
+  function attachDrag(card, entry) {
+    let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false;
+    const stampUnfollow = card.querySelector('.stamp-unfollow');
+    const stampKeep = card.querySelector('.stamp-keep');
+    const stampLater = card.querySelector('.stamp-later');
+
+    function onDown(x, y) {
+      dragging = true;
+      startX = x; startY = y;
+      card.classList.add('dragging');
+    }
+    function onMove(x, y) {
+      if (!dragging) return;
+      dx = x - startX; dy = y - startY;
+      const rot = dx / 14;
+      card.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + rot + 'deg)';
+      stampUnfollow.style.opacity = dx < -20 ? Math.min(1, -dx / 90) : 0;
+      stampKeep.style.opacity = dx > 20 ? Math.min(1, dx / 90) : 0;
+      stampLater.style.opacity = (dy < -20 && Math.abs(dx) < 60) ? Math.min(1, -dy / 70) : 0;
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove('dragging');
+      const threshold = 90;
+      if (dy < -70 && Math.abs(dx) < 60) { flingCard(card, 0, -400, () => decide(entry, 'later')); }
+      else if (dx < -threshold) { flingCard(card, -500, dy, () => decide(entry, 'unfollow')); }
+      else if (dx > threshold) { flingCard(card, 500, dy, () => decide(entry, 'keep')); }
+      else { card.style.transform = ''; stampUnfollow.style.opacity = 0; stampKeep.style.opacity = 0; stampLater.style.opacity = 0; }
+      dx = 0; dy = 0;
+    }
+
+    card.addEventListener('pointerdown', e => { card.setPointerCapture(e.pointerId); onDown(e.clientX, e.clientY); });
+    card.addEventListener('pointermove', e => onMove(e.clientX, e.clientY));
+    card.addEventListener('pointerup', onUp);
+    card.addEventListener('pointercancel', onUp);
+  }
+
+  function flingCard(card, tx, ty, cb) {
+    card.style.transform = 'translate(' + tx + 'px,' + ty + 'px) rotate(' + (tx / 10) + 'deg)';
+    card.style.opacity = '0';
+    setTimeout(cb, 220);
+  }
+
+  function decide(entry, status) {
+    const key = normKey(entry.username);
+    const prevStatus = swipeDecisions[key] ? swipeDecisions[key].status : null;
+    swipeDecisions[key] = { status, ts: Date.now() };
+    saveSwipeDecisions();
+    swipeHistoryStack.push({ username: entry.username, prevStatus });
+    bumpSwipeStreak();
+    const streakCount = getSwipeStreak();
+    swipeStreakBadge.textContent = streakCount + ' hari beruntun';
+    swipeStreakBadge.classList.remove('hidden');
+    swipeIndex++;
+    renderSwipeStage();
+  }
+
+  function decideCurrentByButton(status) {
+    if (swipeIndex >= swipeQueue.length) return;
+    const entry = swipeQueue[swipeIndex];
+    const card = swipeStage.querySelector('.swipe-card:not(.behind-1):not(.behind-2)');
+    if (card) {
+      const tx = status === 'unfollow' ? -500 : status === 'keep' ? 500 : 0;
+      const ty = status === 'later' ? -400 : 40;
+      flingCard(card, tx, ty, () => decide(entry, status));
+    } else {
+      decide(entry, status);
+    }
+  }
+
+  function undoSwipe() {
+    if (swipeHistoryStack.length === 0) return;
+    const last = swipeHistoryStack.pop();
+    const key = normKey(last.username);
+    if (last.prevStatus) swipeDecisions[key] = { status: last.prevStatus, ts: Date.now() };
+    else delete swipeDecisions[key];
+    saveSwipeDecisions();
+    swipeIndex = Math.max(0, swipeIndex - 1);
+    renderSwipeStage();
+  }
+
+  function currentSwipeCounts() {
+    const rows = (window.__data && window.__data.notback) || [];
+    let unfollow = 0, keep = 0, later = 0;
+    rows.forEach(r => {
+      const st = getSwipeDecision(r.username);
+      if (st === 'unfollow') unfollow++;
+      else if (st === 'keep') keep++;
+      else if (st === 'later') later++;
+    });
+    return { unfollow, keep, later };
+  }
+
+  function showSwipeRecap() {
+    const counts = currentSwipeCounts();
+    document.getElementById('recapUnfollow').textContent = counts.unfollow;
+    document.getElementById('recapLater').textContent = counts.later;
+    document.getElementById('recapKeep').textContent = counts.keep;
+    swipeRecap.classList.remove('hidden');
+  }
+
+  function getUnfollowListAll() {
+    const rows = (window.__data && window.__data.notback) || [];
+    return rows.filter(r => getSwipeDecision(r.username) === 'unfollow');
+  }
+
+  function copyUnfollowList() {
+    const list = getUnfollowListAll();
+    const text = list.map(r => '@' + r.username).join('\n');
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyUnfollowListBtn');
+      const original = btn.textContent;
+      btn.textContent = 'Tersalin ✓';
+      setTimeout(() => { btn.textContent = original; }, 1600);
+    }).catch(() => {});
+  }
+
+  function exportChecklist() {
+    const list = getUnfollowListAll();
+    const lines = list.map(r => '[ ] @' + r.username + '  —  ' + r.href);
+    const text = 'Checklist Unfollow — Balikin\n' + 'Dibuat ' + new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) + '\n\n' + lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'balikin-checklist-unfollow.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetSwipeSession() {
+    const rows = (window.__data && window.__data.notback) || [];
+    rows.forEach(r => { delete swipeDecisions[normKey(r.username)]; });
+    saveSwipeDecisions();
+    startSwipeSession();
+  }
+
+  viewToggleList.addEventListener('click', () => setViewMode('list'));
+  viewToggleSwipe.addEventListener('click', () => setViewMode('swipe'));
+  document.getElementById('swipeUnfollowBtn').addEventListener('click', () => decideCurrentByButton('unfollow'));
+  document.getElementById('swipeKeepBtn').addEventListener('click', () => decideCurrentByButton('keep'));
+  document.getElementById('swipeLaterBtn').addEventListener('click', () => decideCurrentByButton('later'));
+  swipeUndoBtn.addEventListener('click', undoSwipe);
+  document.getElementById('copyUnfollowListBtn').addEventListener('click', copyUnfollowList);
+  document.getElementById('exportChecklistBtn').addEventListener('click', exportChecklist);
+  document.getElementById('resetSwipeBtn').addEventListener('click', resetSwipeSession);
+  document.getElementById('backToListBtn').addEventListener('click', () => setViewMode('list'));
+  document.addEventListener('keydown', e => {
+    if (viewMode !== 'swipe') return;
+    if (e.key === 'Escape') setViewMode('list');
+    else if (e.key === 'ArrowLeft') decideCurrentByButton('unfollow');
+    else if (e.key === 'ArrowRight') decideCurrentByButton('keep');
+    else if (e.key === 'ArrowUp') decideCurrentByButton('later');
+  });
+  // ==================== END SWIPE MODE ====================
+
   dropzone.addEventListener('click', () => fileInput.click());
   dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
   fileInput.addEventListener('change', e => handleFiles(e.target.files));
@@ -1344,11 +1773,13 @@
       document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
       btn.setAttribute('aria-selected', 'true');
       currentTab = btn.dataset.tab;
-      renderList();
+      if (viewMode === 'swipe') setViewMode('list');
+      else { updateFilterVisibility(); renderList(); }
     });
   });
 
   searchInput.addEventListener('input', renderList);
+  filterSelect.addEventListener('change', renderList);
   sortSelect.addEventListener('change', renderList);
   exportCsvBtn.addEventListener('click', exportCsv);
   copyListBtn.addEventListener('click', copyList);
