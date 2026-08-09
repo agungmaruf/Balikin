@@ -16,6 +16,10 @@
 <link rel="icon" href="icons/icon-192.png" />
 
 <!-- Apply saved theme before first paint to avoid a light/dark flash -->
+<!-- Toast: notifikasi ringan buat error yang sebelumnya silent catch
+     (mis. localStorage penuh) supaya user tahu ada yang gagal tersimpan. -->
+<div id="toastHost" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[999] flex flex-col items-center gap-2 pointer-events-none"></div>
+
 <script>
   (function () {
     try {
@@ -636,6 +640,24 @@
           <p>Data ekspor Instagram tidak menyertakan status aktif/nonaktif akun. Klik "Buka Profil" untuk memeriksa secara manual — apabila muncul "Halaman tidak tersedia", akun tersebut kemungkinan sudah nonaktif atau dihapus.</p>
         </div>
 
+        <!-- Bulk action toolbar: muncul begitu ada baris yang dicentang.
+             Aksi tandai (unfollow/keep/nanti) cuma relevan di tab "Tidak
+             Follow Balik" karena itu satu-satunya tab yang punya swipe
+             decision; tab lain cuma dapat aksi Salin. -->
+        <div id="bulkToolbar" class="hidden sticky top-2 z-10 flex flex-wrap items-center gap-2 bg-ink text-white card px-4 py-2.5 mb-2 text-sm">
+          <label class="flex items-center gap-2 cursor-pointer shrink-0">
+            <input id="bulkSelectAllChk" type="checkbox" class="focus-ring w-4 h-4 rounded accent-red" />
+            <span id="bulkCount" class="font-medium">0 dipilih</span>
+          </label>
+          <div class="flex flex-wrap items-center gap-1.5 ml-auto">
+            <button id="bulkUnfollowBtn" class="focus-ring text-xs font-medium bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition">Tandai Unfollow</button>
+            <button id="bulkKeepBtn" class="focus-ring text-xs font-medium bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition">Tandai Keep</button>
+            <button id="bulkLaterBtn" class="focus-ring text-xs font-medium bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition">Tandai Nanti</button>
+            <button id="bulkCopyBtn" class="focus-ring text-xs font-medium bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition">Salin Username</button>
+            <button id="bulkClearBtn" class="focus-ring text-xs font-medium text-white/70 hover:text-white px-2 py-1.5 transition">Batal</button>
+          </div>
+        </div>
+
         <div id="listWrap" class="divide-y divide-line border border-line card overflow-hidden bg-white"></div>
         <p id="emptyState" class="hidden text-center text-mute py-14 text-sm"></p>
 
@@ -820,6 +842,9 @@
   let followingMap = new Map();
   let followersMap = new Map();
   let currentTab = 'notback';
+  // Bulk-select: username (normKey) yang lagi dicentang di list. Direset
+  // tiap ganti tab biar nggak ketukar aksi antar kategori yang berbeda.
+  let selectedKeys = new Set();
 
   function extractEntries(json) {
     const results = [];
@@ -861,6 +886,25 @@
     return username.trim().toLowerCase();
   }
 
+  // Toast ringan buat nampilin error yang sebelumnya silent catch (mis. gagal
+  // simpan ke localStorage). type: 'error' | 'info'.
+  const toastHost = document.getElementById('toastHost');
+  function showToast(message, type) {
+    if (!toastHost) return;
+    const el = document.createElement('div');
+    const tone = type === 'error'
+      ? 'bg-red text-white'
+      : 'bg-ink text-white';
+    el.className = tone + ' pointer-events-auto shadow-lg rounded-2xl px-4 py-3 text-sm max-w-sm text-center animate-[row-in_.25s_ease]';
+    el.textContent = message;
+    toastHost.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity .3s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 320);
+    }, 4200);
+  }
+
   function classify(filename) {
     // Use only the last path segment so folder names like
     // "followers_and_following" don't get matched by mistake.
@@ -888,6 +932,11 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {
       console.error('Gagal menyimpan data ke localStorage', err);
+      if (err && (err.name === 'QuotaExceededError' || err.code === 22)) {
+        showToast('Data kamu terlalu besar untuk disimpan otomatis di browser (penyimpanan penuh). Hasil analisis tetap ditampilkan sekarang, tapi tidak akan ada kalau kamu refresh halaman — export CSV dulu biar aman.', 'error');
+      } else {
+        showToast('Gagal menyimpan data ke penyimpanan browser. Hasil analisis tetap ditampilkan, tapi mungkin hilang saat refresh.', 'error');
+      }
     }
   }
 
@@ -929,6 +978,7 @@
     if (typeof swipeStreakBadge !== 'undefined' && swipeStreakBadge) swipeStreakBadge.classList.add('hidden');
     followingMap = new Map();
     followersMap = new Map();
+    if (typeof selectedKeys !== 'undefined') selectedKeys.clear();
     fileChips.innerHTML = '';
     fileStatus.classList.add('hidden');
     parseState.classList.add('hidden');
@@ -952,28 +1002,58 @@
     const files = Array.from(fileList);
     const chipNames = [...fileChips.children].map(c => c.textContent.replace(/^✓\s*/, ''));
 
+    let anyZipMissingExport = false; // zip valid tapi nggak ada folder followers_and_following
+    let anyUnrecognizedJson = false; // JSON kebaca tapi extractEntries() nggak nemu entry apapun
+    let anyBadFormat = false;        // bukan zip/json valid sama sekali (JSZip/JSON.parse throw)
+
     for (const file of files) {
+      const lower = file.name.toLowerCase();
+      if (!lower.endsWith('.zip') && !lower.endsWith('.json')) {
+        anyBadFormat = true;
+        continue; // bukan tipe yang didukung, jangan dicoba dibaca
+      }
       try {
-        if (file.name.toLowerCase().endsWith('.zip')) {
-          const zip = await JSZip.loadAsync(file);
+        if (lower.endsWith('.zip')) {
+          let zip;
+          try {
+            zip = await JSZip.loadAsync(file);
+          } catch (zipErr) {
+            anyBadFormat = true;
+            console.error('File bukan zip yang valid', file.name, zipErr);
+            continue;
+          }
           const entries = Object.keys(zip.files).filter(p =>
             /followers_and_following/i.test(p) && p.toLowerCase().endsWith('.json')
           );
+          if (entries.length === 0) {
+            anyZipMissingExport = true;
+            continue;
+          }
+          let foundAny = false;
           for (const path of entries) {
             const text = await zip.files[path].async('string');
             const type = classify(path);
             if (!type) continue;
             const json = JSON.parse(text);
             const entries2 = extractEntries(json);
+            if (entries2.length > 0) foundAny = true;
             mergeInto(type === 'following' ? followingMap : followersMap, entries2);
           }
+          if (!foundAny) anyUnrecognizedJson = true;
           addChip(file.name);
           chipNames.push(file.name);
-        } else if (file.name.toLowerCase().endsWith('.json')) {
+        } else if (lower.endsWith('.json')) {
           const type = classify(file.name);
+          if (!type) {
+            // Nama file nggak dikenali sebagai following.json / followers.json /
+            // followers_1.json, jadi kita nggak tahu ini masuk kategori mana.
+            anyUnrecognizedJson = true;
+            continue;
+          }
           const text = await file.text();
           const json = JSON.parse(text);
           const entries2 = extractEntries(json);
+          if (entries2.length === 0) anyUnrecognizedJson = true;
           if (type === 'following') mergeInto(followingMap, entries2);
           else mergeInto(followersMap, entries2);
           addChip(file.name);
@@ -981,12 +1061,20 @@
         }
       } catch (err) {
         console.error('Gagal membaca file', file.name, err);
-        parseState.textContent = 'Ada file yang gagal dibaca (' + file.name + '). Pastikan formatnya JSON hasil ekspor Instagram.';
+        anyBadFormat = true;
       }
     }
 
     if (followingMap.size === 0 && followersMap.size === 0) {
-      parseState.textContent = 'Belum ada data yang terbaca. Cek lagi file yang kamu upload.';
+      if (anyZipMissingExport) {
+        parseState.textContent = 'File zip berhasil dibuka, tapi folder "followers_and_following" nggak ketemu di dalamnya. Pastikan ini zip hasil ekspor data Instagram (Pengaturan → Pusat Akun → Unduh informasi kamu), bukan file zip lain.';
+      } else if (anyUnrecognizedJson) {
+        parseState.textContent = 'File JSON kebaca, tapi isinya nggak dikenali sebagai data following/followers Instagram. Kemungkinan Instagram mengubah format ekspornya, atau file-nya bukan hasil ekspor IG.';
+      } else if (anyBadFormat) {
+        parseState.textContent = 'Ada file yang gagal dibaca — pastikan kamu upload file .zip atau .json hasil ekspor data Instagram, bukan tipe file lain.';
+      } else {
+        parseState.textContent = 'Belum ada data yang terbaca. Cek lagi file yang kamu upload.';
+      }
       return;
     }
 
@@ -1518,21 +1606,50 @@
     listWrap.classList.remove('hidden');
 
     rows.forEach((r, i) => {
+      const key = normKey(r.username);
       const date = r.timestamp ? new Date(r.timestamp * 1000).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Tanggal tidak diketahui';
       const row = document.createElement('div');
-      row.className = 'row-enter flex items-center justify-between gap-4 px-5 py-4 hover:bg-surface transition';
+      row.className = 'row-enter flex items-center gap-3 px-5 py-4 hover:bg-surface transition';
       row.style.animationDelay = (i * 15) + 'ms';
+      row.dataset.key = key;
       const decision = currentTab === 'notback' ? getSwipeDecision(r.username) : null;
       const tagHtml = decision ? '<span class="decision-tag ' + decision + ' inline-block mt-1">' + SWIPE_TAG_LABEL[decision] + '</span>' : '';
+      const checked = selectedKeys.has(key) ? 'checked' : '';
       row.innerHTML =
-        '<div class="min-w-0">' +
+        '<input type="checkbox" class="row-select-chk focus-ring shrink-0 w-4 h-4 rounded accent-red" ' + checked + ' aria-label="Pilih @' + escapeHtml(r.username) + '" />' +
+        avatarHtml(r.username) +
+        '<div class="min-w-0 flex-1">' +
           '<p class="font-mono text-sm truncate">@' + escapeHtml(r.username) + '</p>' +
           '<p class="text-xs text-mute mt-0.5">Diikuti sejak ' + date + '</p>' +
           tagHtml +
         '</div>' +
         '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Buka Profil ↗</a>';
+      row.querySelector('.row-select-chk').addEventListener('change', e => {
+        if (e.target.checked) selectedKeys.add(key);
+        else selectedKeys.delete(key);
+        updateBulkToolbar();
+      });
       listWrap.appendChild(row);
     });
+
+    updateBulkToolbar();
+  }
+
+  // Avatar inisial: data ekspor Instagram nggak menyertakan foto profil sama
+  // sekali (cek extractEntries — cuma ada username/href/timestamp), dan
+  // fetch foto dari IG live butuh proxy pihak ketiga yang bertentangan sama
+  // prinsip privacy-first app ini (semua data cuma di localStorage). Jadi
+  // dipakai inisial + warna konsisten per-username sebagai gantinya.
+  const AVATAR_PALETTE = ['#E4002B', '#1E8E5A', '#C97A00', '#2B6CB0', '#7C3AED', '#0F766E', '#B91C1C', '#4338CA'];
+  function avatarColor(username) {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) hash = (hash * 31 + username.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+  }
+  function avatarHtml(username) {
+    const initial = (username[0] || '?').toUpperCase();
+    const color = avatarColor(username);
+    return '<div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style="background:' + color + '">' + escapeHtml(initial) + '</div>';
   }
 
   function escapeHtml(s) {
@@ -1576,7 +1693,11 @@
     try { swipeDecisions = JSON.parse(localStorage.getItem(SWIPE_DECISIONS_KEY) || '{}'); } catch (e) { swipeDecisions = {}; }
   })();
   function saveSwipeDecisions() {
-    try { localStorage.setItem(SWIPE_DECISIONS_KEY, JSON.stringify(swipeDecisions)); } catch (e) {}
+    try {
+      localStorage.setItem(SWIPE_DECISIONS_KEY, JSON.stringify(swipeDecisions));
+    } catch (e) {
+      showToast('Keputusan swipe barusan gagal tersimpan (penyimpanan browser penuh). Coba export checklist unfollow sekarang biar nggak hilang.', 'error');
+    }
   }
   function getSwipeDecision(username) {
     const rec = swipeDecisions[normKey(username)];
@@ -1606,6 +1727,78 @@
   const viewToggleList = document.getElementById('viewToggleList');
   const viewToggleSwipe = document.getElementById('viewToggleSwipe');
   const listToolsGroup = document.getElementById('listToolsGroup');
+  // ==================== BULK SELECT ====================
+  const bulkToolbar = document.getElementById('bulkToolbar');
+  const bulkCount = document.getElementById('bulkCount');
+  const bulkSelectAllChk = document.getElementById('bulkSelectAllChk');
+  const bulkUnfollowBtn = document.getElementById('bulkUnfollowBtn');
+  const bulkKeepBtn = document.getElementById('bulkKeepBtn');
+  const bulkLaterBtn = document.getElementById('bulkLaterBtn');
+  const bulkCopyBtn = document.getElementById('bulkCopyBtn');
+  const bulkClearBtn = document.getElementById('bulkClearBtn');
+
+  function visibleRowKeys() {
+    return Array.from(listWrap.querySelectorAll('[data-key]')).map(el => el.dataset.key);
+  }
+
+  function clearSelection() {
+    selectedKeys.clear();
+    updateBulkToolbar();
+  }
+
+  function updateBulkToolbar() {
+    const n = selectedKeys.size;
+    bulkToolbar.classList.toggle('hidden', n === 0);
+    bulkCount.textContent = n + ' dipilih';
+    const visible = visibleRowKeys();
+    const allVisibleSelected = visible.length > 0 && visible.every(k => selectedKeys.has(k));
+    bulkSelectAllChk.checked = allVisibleSelected;
+    // Aksi tandai (unfollow/keep/nanti) cuma masuk akal untuk tab yang
+    // punya swipe decision (notback). Tab lain (orang/mutual) cuma bisa Salin.
+    const showDecisionActions = currentTab === 'notback';
+    bulkUnfollowBtn.classList.toggle('hidden', !showDecisionActions);
+    bulkKeepBtn.classList.toggle('hidden', !showDecisionActions);
+    bulkLaterBtn.classList.toggle('hidden', !showDecisionActions);
+  }
+
+  bulkSelectAllChk.addEventListener('change', () => {
+    const visible = visibleRowKeys();
+    if (bulkSelectAllChk.checked) visible.forEach(k => selectedKeys.add(k));
+    else visible.forEach(k => selectedKeys.delete(k));
+    renderList();
+  });
+
+  function bulkMarkSelected(status) {
+    if (currentTab !== 'notback') return;
+    const rows = (window.__data && window.__data.notback) || [];
+    const byKey = new Map(rows.map(r => [normKey(r.username), r]));
+    selectedKeys.forEach(key => {
+      const entry = byKey.get(key);
+      if (!entry) return;
+      swipeDecisions[key] = { status, ts: Date.now() };
+    });
+    saveSwipeDecisions();
+    showToast(selectedKeys.size + ' akun ditandai "' + SWIPE_TAG_LABEL[status] + '".', 'info');
+    clearSelection();
+    renderList();
+  }
+
+  function bulkCopySelected() {
+    const rows = (window.__data && window.__data[currentTab]) || [];
+    const text = rows.filter(r => selectedKeys.has(normKey(r.username))).map(r => '@' + r.username).join('\n');
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Username yang dipilih tersalin ke clipboard.', 'info');
+    }).catch(() => {});
+  }
+
+  bulkUnfollowBtn.addEventListener('click', () => bulkMarkSelected('unfollow'));
+  bulkKeepBtn.addEventListener('click', () => bulkMarkSelected('keep'));
+  bulkLaterBtn.addEventListener('click', () => bulkMarkSelected('later'));
+  bulkCopyBtn.addEventListener('click', bulkCopySelected);
+  bulkClearBtn.addEventListener('click', clearSelection);
+  // ==================== END BULK SELECT ====================
+
   const filterSelect = document.getElementById('filterSelect');
   const swipeInline = document.getElementById('swipeInline');
 
@@ -1914,12 +2107,22 @@
       document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
       btn.setAttribute('aria-selected', 'true');
       currentTab = btn.dataset.tab;
+      selectedKeys.clear();
       if (viewMode === 'swipe') setViewMode('list');
       else { updateFilterVisibility(); renderList(); }
     });
   });
 
-  searchInput.addEventListener('input', renderList);
+  // Debounce: renderList() nge-render ulang seluruh DOM tiap dipanggil, jadi
+  // untuk akun dengan following ribuan, render tiap keystroke bisa mulai lag.
+  // 180ms cukup responsif tapi ngurangin render berulang pas user lagi ngetik cepat.
+  function debounce(fn, wait) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+  }
+  const renderListDebounced = debounce(renderList, 180);
+
+  searchInput.addEventListener('input', renderListDebounced);
   filterSelect.addEventListener('change', renderList);
   sortSelect.addEventListener('change', renderList);
   exportCsvBtn.addEventListener('click', exportCsv);
