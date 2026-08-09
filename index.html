@@ -183,31 +183,88 @@
   .view-toggle-btn[aria-selected="true"] { color: #FFFFFF; background: #1A1A1E; }
   .view-toggle-btn[aria-selected="false"] { color: #6B6B75; background: transparent; }
   html.dark .view-toggle-btn[aria-selected="false"] { color: rgba(245,245,247,0.55) !important; }
-  .swipe-stage { position: relative; height: 340px; touch-action: none; }
+  .swipe-stage { position: relative; height: 380px; touch-action: none; }
   .swipe-card {
-    position: absolute; inset: 0; margin: auto; width: 100%; max-width: 320px; height: 320px;
-    background: #FFFFFF; border: 1px solid #E7E5EA; border-radius: 1.75rem;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    position: absolute; inset: 0; margin: auto; width: 100%; max-width: 320px; height: 360px;
+    background: #FFFFFF; border: 1px solid #E7E5EA;
+    border-radius: 1.75rem; border-bottom-right-radius: .5rem;
+    box-shadow: 0 18px 40px rgba(20,10,15,0.14), 0 2px 8px rgba(20,10,15,0.05);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 2rem; text-align: center; cursor: grab; user-select: none;
+    padding: 2.75rem 1.75rem 1.75rem; text-align: center; cursor: grab; user-select: none;
     transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s ease;
+    overflow: hidden;
+    /* Kartu paling depan (yang bisa di-drag) HARUS punya z-index tertinggi.
+       Sebelumnya nilai ini nggak diset (auto), jadi .behind-1 (z-index:1)
+       malah tergambar di atasnya — bikin kartu depan kelihatan nggak
+       bisa di-swipe karena event pointer-nya kepotong kartu di belakang. */
+    z-index: 2;
   }
+  /* Soft brand-colored shapes echoing the hero card's visual language */
+  .swipe-card:not(.behind-1):not(.behind-2)::before {
+    content: ''; position: absolute; right: -22%; top: -32%; width: 65%; height: 130%;
+    border-radius: 999px; background: linear-gradient(135deg, rgba(228,0,43,0.07), rgba(228,0,43,0));
+    transform: rotate(18deg); pointer-events: none; z-index: 0;
+  }
+  .swipe-card:not(.behind-1):not(.behind-2)::after {
+    content: ''; position: absolute; left: -24%; bottom: -34%; width: 55%; height: 110%;
+    border-radius: 999px; background: rgba(228,0,43,0.04);
+    transform: rotate(-12deg); pointer-events: none; z-index: 0;
+  }
+  /* Notch cutout bottom-right, matching the hero card's corporate-rounded style */
+  .swipe-card-notch {
+    position: absolute; right: 0; bottom: 0; width: 34px; height: 34px;
+    background: radial-gradient(circle at top left, transparent 34px, #ffffff 34px);
+    z-index: 3; pointer-events: none;
+  }
+  html.dark .swipe-card-notch { background: radial-gradient(circle at top left, transparent 34px, #1C1C20 34px) !important; }
+  .swipe-card.behind-1 .swipe-card-notch { background: radial-gradient(circle at top left, transparent 34px, #EFEDF1 34px) !important; }
+  .swipe-card.behind-2 .swipe-card-notch { background: radial-gradient(circle at top left, transparent 34px, #E3E1E7 34px) !important; }
+  html.dark .swipe-card.behind-1 .swipe-card-notch { background: radial-gradient(circle at top left, transparent 34px, #232327 34px) !important; }
+  html.dark .swipe-card.behind-2 .swipe-card-notch { background: radial-gradient(circle at top left, transparent 34px, #2A2A2F 34px) !important; }
   .swipe-card.dragging { transition: none; cursor: grabbing; }
   .swipe-card.behind-1 { transform: scale(0.96) translateY(10px); opacity: 1; z-index: 1; background: #EFEDF1; border-color: #DEDCE2; }
   .swipe-card.behind-2 { transform: scale(0.92) translateY(18px); opacity: 1; z-index: 0; background: #E3E1E7; border-color: #D2D0D8; }
   html.dark .swipe-card { background: #1C1C20; border-color: rgba(255,255,255,0.08); }
   html.dark .swipe-card.behind-1 { background: #232327; border-color: rgba(255,255,255,0.1); }
   html.dark .swipe-card.behind-2 { background: #2A2A2F; border-color: rgba(255,255,255,0.12); }
-  .swipe-avatar {
-    width: 72px; height: 72px; border-radius: 999px; background: #F7F6F8; border: 1px solid #E7E5EA;
-    display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 700; font-size: 1.5rem; color: #E4002B; margin-bottom: 1rem;
+  /* Small brand mark, top-left corner of the top card */
+  .swipe-card-brand {
+    position: absolute; top: 16px; left: 18px; display: flex; align-items: center; gap: 6px; z-index: 2;
   }
-  html.dark .swipe-avatar { background: #121214; border-color: rgba(255,255,255,0.08); }
+  .swipe-card-brand .b-dot {
+    width: 16px; height: 16px; border-radius: 999px; background: #E4002B;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .swipe-card-brand .b-dot span { width: 5px; height: 5px; border-radius: 999px; background: #fff; }
+  .swipe-card-brand em {
+    font-style: normal; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+    font-size: 11px; color: #1A1A1E; letter-spacing: .01em;
+  }
+  html.dark .swipe-card-brand em { color: #F5F5F7; }
+  /* Position badge, top-right corner of the top card */
+  .swipe-card-index {
+    position: absolute; top: 15px; right: 18px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #6B6B75; background: #F7F6F8; border: 1px solid #E7E5EA;
+    padding: 3px 10px; border-radius: 999px; z-index: 2;
+  }
+  html.dark .swipe-card-index { color: rgba(245,245,247,0.6); background: #121214; border-color: rgba(255,255,255,0.08); }
+  .swipe-avatar {
+    width: 76px; height: 76px; border-radius: 999px; padding: 3px; margin-bottom: 1rem; position: relative; z-index: 1;
+    background: linear-gradient(135deg, #E4002B, #A50021);
+    box-shadow: 0 10px 22px rgba(228,0,43,0.22);
+  }
+  .swipe-avatar-inner {
+    width: 100%; height: 100%; border-radius: 999px; background: #FFFFFF;
+    display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800; font-size: 1.5rem; color: #E4002B;
+  }
+  html.dark .swipe-avatar-inner { background: #1C1C20; color: #FF4D6D; }
+  .swipe-card.behind-1 .swipe-avatar, .swipe-card.behind-2 .swipe-avatar { box-shadow: none; }
+  .swipe-card-existing-tag { position: relative; z-index: 1; margin-top: .6rem; }
   .swipe-stamp {
-    position: absolute; top: 22px; padding: 6px 16px; border: 3px solid; border-radius: 10px;
+    position: absolute; top: 26px; padding: 6px 16px; border: 3px solid; border-radius: 10px;
     font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 0.9rem; letter-spacing: .04em;
-    text-transform: uppercase; opacity: 0; transform: rotate(-14deg);
+    text-transform: uppercase; opacity: 0; transform: rotate(-14deg); z-index: 2;
   }
   .swipe-stamp.stamp-unfollow { left: 20px; color: #E4002B; border-color: #E4002B; }
   .swipe-stamp.stamp-keep { right: 20px; color: #1E8E5A; border-color: #1E8E5A; transform: rotate(14deg); }
@@ -218,6 +275,7 @@
   .decision-tag.later { background: rgba(201,122,0,0.1); color: #C97A00; }
   @media (prefers-reduced-motion: reduce) { .swipe-card { transition: none !important; } }
 </style>
+
 </head>
 <body class="font-body text-ink antialiased">
 
@@ -830,6 +888,7 @@
     try { localStorage.removeItem(SWIPE_STREAK_KEY); } catch (err) {}
     if (typeof swipeDecisions !== 'undefined') swipeDecisions = {};
     if (typeof swipeHistoryStack !== 'undefined') swipeHistoryStack = [];
+    if (typeof swipeSessionStarted !== 'undefined') swipeSessionStarted = false;
     if (typeof swipeStreakBadge !== 'undefined' && swipeStreakBadge) swipeStreakBadge.classList.add('hidden');
     followingMap = new Map();
     followersMap = new Map();
@@ -982,6 +1041,10 @@
   }
 
   function computeAndRender() {
+    // Data (following/followers) baru saja dihitung ulang — pastikan sesi
+    // swipe berikutnya dibangun dari 0 mengikuti data terbaru, bukan
+    // melanjutkan antrian dari data sebelumnya.
+    swipeSessionStarted = false;
     const notBack = [...followingMap.values()].filter(e => !followersMap.has(normKey(e.username)));
     const orang = [...followersMap.values()].filter(e => !followingMap.has(normKey(e.username)));
     const mutual = [...followingMap.values()].filter(e => followersMap.has(normKey(e.username)));
@@ -1520,6 +1583,18 @@
   let swipeQueue = [];
   let swipeIndex = 0;
   let swipeHistoryStack = []; // for undo: {username, prevStatus}
+  // Kunci sederhana biar kartu yang sama nggak bisa diputuskan dua kali
+  // (mis. klik tombol dobel / tahan tombol panah) sebelum kartu berikutnya
+  // benar-benar tampil — ini yang sebelumnya bikin tanda ketuker sama
+  // username yang salah karena index-nya lompat.
+  let swipeLocked = false;
+  // Penanda apakah sesi swipe untuk data yang sedang aktif sudah dimulai.
+  // Tanpa ini, tiap kali pindah tab List -> Swipe, antrian dibangun ulang
+  // dari 0 — akun yang sudah ditandai "Keep"/"Nanti" muncul lagi dari awal
+  // seolah kartu baru, dan kalau ke-swipe lagi, tandanya ketimpa/ketuker
+  // dengan keputusan yang baru. Sekarang sesi cuma dibangun sekali sampai
+  // memang direset (tombol Reset, upload ulang, atau Hapus Data).
+  let swipeSessionStarted = false;
 
   function updateFilterVisibility() {
     if (currentTab === 'notback' && viewMode === 'list') filterSelect.classList.remove('hidden');
@@ -1538,7 +1613,12 @@
       emptyState.classList.add('hidden');
       swipeInline.classList.remove('hidden');
       updateFilterVisibility();
-      startSwipeSession();
+      // Cuma bangun sesi swipe dari awal kalau memang belum pernah dimulai
+      // untuk data yang sedang aktif — biar gonta-ganti tab List/Swipe
+      // nggak reset progres & nggak bikin kartu yang sudah ditandai
+      // muncul lagi dari nol.
+      if (!swipeSessionStarted) startSwipeSession();
+      else renderSwipeStage();
     } else {
       swipeInline.classList.add('hidden');
       listToolsGroup.classList.remove('hidden');
@@ -1554,6 +1634,7 @@
   }
 
   function startSwipeSession() {
+    swipeSessionStarted = true;
     swipeQueue = buildSwipeQueue();
     swipeIndex = 0;
     swipeHistoryStack = [];
@@ -1578,6 +1659,7 @@
   }
 
   function renderSwipeStage() {
+    swipeLocked = false;
     updateSwipeProgress();
     swipeStage.innerHTML = '';
     if (swipeIndex >= swipeQueue.length) {
@@ -1594,14 +1676,22 @@
       card.className = 'swipe-card' + (idx === 1 ? ' behind-1' : idx === 2 ? ' behind-2' : '');
       const initial = (r.username || '?').trim().charAt(0).toUpperCase();
       const date = r.timestamp ? new Date(r.timestamp * 1000).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Tanggal tidak diketahui';
+      const existingStatus = getSwipeDecision(r.username);
+      const existingTag = (idx === 0 && existingStatus && existingStatus !== 'unfollow')
+        ? '<span class="swipe-card-existing-tag decision-tag ' + existingStatus + '">' + escapeHtml(SWIPE_TAG_LABEL[existingStatus]) + '</span>'
+        : '';
       card.innerHTML =
         '<span class="swipe-stamp stamp-unfollow">Unfollow</span>' +
         '<span class="swipe-stamp stamp-keep">Keep</span>' +
         '<span class="swipe-stamp stamp-later">Nanti</span>' +
-        '<div class="swipe-avatar">' + escapeHtml(initial) + '</div>' +
-        '<p class="font-mono text-base font-semibold truncate max-w-full">@' + escapeHtml(r.username) + '</p>' +
-        '<p class="text-xs text-mute mt-1">Diikuti sejak ' + date + '</p>' +
-        '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring mt-4 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition" onclick="event.stopPropagation()">Buka Profil ↗</a>';
+        (idx === 0 ? '<span class="swipe-card-brand"><span class="b-dot"><span></span></span><em>Balikin</em></span>' : '') +
+        (idx === 0 ? '<span class="swipe-card-index">' + (swipeIndex + 1) + ' / ' + swipeQueue.length + '</span>' : '') +
+        '<div class="swipe-avatar"><div class="swipe-avatar-inner">' + escapeHtml(initial) + '</div></div>' +
+        '<p class="font-mono text-base font-semibold truncate max-w-full relative z-[1]">@' + escapeHtml(r.username) + '</p>' +
+        '<p class="text-xs text-mute mt-1 relative z-[1]">Diikuti sejak ' + date + '</p>' +
+        existingTag +
+        '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring mt-4 relative z-[1] text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition" onclick="event.stopPropagation()">Buka Profil ↗</a>' +
+        '<span class="swipe-card-notch" aria-hidden="true"></span>';
       swipeStage.appendChild(card);
       if (idx === 0) attachDrag(card, r);
     });
@@ -1614,6 +1704,7 @@
     const stampLater = card.querySelector('.stamp-later');
 
     function onDown(x, y) {
+      if (swipeLocked) return; // kartu ini sedang dalam proses keputusan, abaikan input baru
       dragging = true;
       startX = x; startY = y;
       card.classList.add('dragging');
@@ -1631,10 +1722,11 @@
       if (!dragging) return;
       dragging = false;
       card.classList.remove('dragging');
+      if (swipeLocked) { dx = 0; dy = 0; return; } // keputusan untuk kartu ini sudah diproses (mis. lewat tombol)
       const threshold = 90;
-      if (dy < -70 && Math.abs(dx) < 60) { flingCard(card, 0, -400, () => decide(entry, 'later')); }
-      else if (dx < -threshold) { flingCard(card, -500, dy, () => decide(entry, 'unfollow')); }
-      else if (dx > threshold) { flingCard(card, 500, dy, () => decide(entry, 'keep')); }
+      if (dy < -70 && Math.abs(dx) < 60) { swipeLocked = true; flingCard(card, 0, -400, () => decide(entry, 'later')); }
+      else if (dx < -threshold) { swipeLocked = true; flingCard(card, -500, dy, () => decide(entry, 'unfollow')); }
+      else if (dx > threshold) { swipeLocked = true; flingCard(card, 500, dy, () => decide(entry, 'keep')); }
       else { card.style.transform = ''; stampUnfollow.style.opacity = 0; stampKeep.style.opacity = 0; stampLater.style.opacity = 0; }
       dx = 0; dy = 0;
     }
@@ -1666,10 +1758,12 @@
   }
 
   function decideCurrentByButton(status) {
+    if (swipeLocked) return; // sudah ada keputusan berjalan untuk kartu ini, jangan proses lagi
     if (swipeIndex >= swipeQueue.length) return;
     const entry = swipeQueue[swipeIndex];
     const card = swipeStage.querySelector('.swipe-card:not(.behind-1):not(.behind-2)');
     if (card) {
+      swipeLocked = true;
       const tx = status === 'unfollow' ? -500 : status === 'keep' ? 500 : 0;
       const ty = status === 'later' ? -400 : 40;
       flingCard(card, tx, ty, () => decide(entry, status));
@@ -1758,6 +1852,7 @@
   document.getElementById('backToListBtn').addEventListener('click', () => setViewMode('list'));
   document.addEventListener('keydown', e => {
     if (viewMode !== 'swipe') return;
+    if (e.repeat) return; // cegah tombol panah yang ditahan memicu keputusan berkali-kali
     if (e.key === 'Escape') setViewMode('list');
     else if (e.key === 'ArrowLeft') decideCurrentByButton('unfollow');
     else if (e.key === 'ArrowRight') decideCurrentByButton('keep');
