@@ -1,0 +1,1380 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Balikin — Analisis Followers &amp; Following Instagram Kamu</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#E4002B" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Balikin" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="icon" href="icons/icon-192.png" />
+
+<!-- Apply saved theme before first paint to avoid a light/dark flash -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('balikin_theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (t === 'dark' || (!t && prefersDark)) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          red: { DEFAULT: '#E4002B', dark: '#A50021', deep: '#2B0008' },
+          ink: '#1A1A1E',
+          mute: '#6B6B75',
+          line: '#E7E5EA',
+          surface: '#F7F6F8',
+          mint: '#1E8E5A',
+          amber: '#C97A00',
+        },
+        fontFamily: {
+          display: ['"Plus Jakarta Sans"', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      },
+    },
+  }
+</script>
+<style>
+  * { scroll-behavior: smooth; }
+  html, body { background: #FFFFFF; overflow-x: hidden; }
+  .scroll-x-toolbar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .scroll-x-toolbar::-webkit-scrollbar { height: 6px; }
+  .scroll-x-toolbar::-webkit-scrollbar-thumb { background: #E7E5EA; border-radius: 999px; }
+  .focus-ring:focus-visible { outline: 2px solid #E4002B; outline-offset: 3px; }
+
+  /* Corporate-rounded surfaces */
+  .card { border-radius: 1.75rem; }
+  .card-lg { border-radius: 2rem; }
+
+  /* Hero carousel */
+  .carousel-track { display: flex; transition: transform .6s cubic-bezier(.4,0,.2,1); }
+  .carousel-slide { flex: 0 0 100%; }
+
+  /* Telkom-style rounded card with a concave notch cut into the bottom-right corner */
+  .hero-card {
+    border-radius: 28px;
+    border-bottom-right-radius: 0;
+  }
+  .hero-notch {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 64px;
+    height: 64px;
+    background: radial-gradient(circle at top left, transparent 64px, #ffffff 64px);
+    z-index: 5;
+    pointer-events: none;
+  }
+  @media (min-width: 640px) {
+    .hero-card { border-radius: 40px; border-bottom-right-radius: 0; }
+    .hero-notch {
+      width: 92px; height: 92px;
+      background: radial-gradient(circle at top left, transparent 92px, #ffffff 92px);
+    }
+  }
+  .hero-arrows button { font-size: 1.1rem; line-height: 1; }
+
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.4); transition: all .3s; }
+  .dot.active { width: 26px; background: #ffffff; }
+  .slide-shape { position: absolute; inset: 0; overflow: hidden; }
+  .slide-shape::before {
+    content: ''; position: absolute; right: -10%; top: -20%; width: 60%; height: 140%;
+    border-radius: 999px; background: rgba(255,255,255,0.06);
+    transform: rotate(18deg);
+  }
+  .slide-shape::after {
+    content: ''; position: absolute; right: 8%; top: 30%; width: 30%; height: 90%;
+    border-radius: 999px; background: rgba(255,255,255,0.05);
+    transform: rotate(18deg);
+  }
+
+  .drop-active { border-color: #E4002B !important; background: rgba(228,0,43,0.04) !important; }
+  .tab-btn[aria-selected="true"] { color: #FFFFFF; background: #E4002B; }
+  .tab-btn[aria-selected="false"] { color: #6B6B75; background: transparent; }
+
+  .theme-btn[aria-selected="true"] { color: #FFFFFF; background: #E4002B; border-color: #E4002B; }
+  .theme-btn[aria-selected="false"] { color: #6B6B75; background: transparent; }
+
+  .row-enter { animation: row-in .35s ease both; }
+  @keyframes row-in { from { opacity: 0; transform: translateY(4px);} to { opacity:1; transform:translateY(0);} }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row-enter { animation: none !important; opacity: 1 !important; transform: none !important; }
+    .carousel-track { transition: none !important; }
+    * { scroll-behavior: auto !important; }
+  }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-thumb { background: #E7E5EA; border-radius: 999px; }
+
+  /* ===== Dark mode ===== */
+  html.dark, html.dark body { background: #121214; color: #F5F5F7; }
+  html.dark { color-scheme: dark; }
+  html:not(.dark) body, html:not(.dark) { color-scheme: light; }
+
+  html.dark header { background: rgba(18,18,20,0.92) !important; border-color: rgba(255,255,255,0.08) !important; }
+  html.dark header a, html.dark header span { color: inherit; }
+  html.dark header .text-ink\/70 { color: rgba(245,245,247,0.65); }
+
+  html.dark section.bg-white { background: #121214 !important; }
+  html.dark .hero-notch { background: radial-gradient(circle at top left, transparent 64px, #121214 64px) !important; }
+  @media (min-width: 640px) {
+    html.dark .hero-notch { background: radial-gradient(circle at top left, transparent 92px, #121214 92px) !important; }
+  }
+
+  html.dark #panduan, html.dark #upload, html.dark #privasi { border-color: rgba(255,255,255,0.08) !important; }
+  html.dark #upload { background: #17171A !important; }
+
+  html.dark #panduan [class*="bg-surface"],
+  html.dark #upload [class*="bg-surface"] { background: #1C1C20 !important; }
+
+  html.dark #panduan [class*="bg-white"],
+  html.dark #upload [class*="bg-white"] { background: #1C1C20 !important; }
+
+  html.dark #panduan [class*="border-line"],
+  html.dark #upload [class*="border-line"],
+  html.dark #panduan [class*="divide-line"] > *,
+  html.dark #upload [class*="divide-line"] > * { border-color: rgba(255,255,255,0.08) !important; }
+
+  html.dark #panduan [class*="text-ink"],
+  html.dark #upload [class*="text-ink"],
+  html.dark #privasi [class*="text-ink"] { color: #F5F5F7 !important; }
+
+  html.dark #panduan [class*="text-mute"],
+  html.dark #upload [class*="text-mute"],
+  html.dark #privasi [class*="text-mute"] { color: rgba(245,245,247,0.55) !important; }
+
+  html.dark #upload input,
+  html.dark #upload select { background: #1C1C20 !important; color: #F5F5F7 !important; }
+  html.dark #upload ::placeholder { color: rgba(245,245,247,0.35) !important; }
+  html.dark #upload [id="listWrap"] > div:hover { background: rgba(255,255,255,0.04) !important; }
+
+  html.dark .tab-btn[aria-selected="false"] { color: rgba(245,245,247,0.55) !important; }
+
+  html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+  html.dark .scroll-x-toolbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+
+  /* Theme toggle icon swap */
+  #themeToggle .icon-moon { display: none; }
+  html.dark #themeToggle .icon-sun { display: none; }
+  html.dark #themeToggle .icon-moon { display: inline-flex; }
+</style>
+</head>
+<body class="font-body text-ink antialiased">
+
+  <!-- NAV -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-red flex items-center justify-center">
+          <span class="w-2 h-2 rounded-full bg-white"></span>
+        </span>
+        <div class="leading-none">
+          <span class="font-display font-bold text-base tracking-tight block">Balikin</span>
+          <span class="hidden sm:block text-[10px] text-mute tracking-wide">by Instagram data, untuk kamu</span>
+        </div>
+      </div>
+      <nav class="hidden sm:flex items-center gap-7 text-sm font-medium text-ink/70">
+        <a href="#panduan" class="hover:text-red focus-ring">Panduan</a>
+        <a href="#upload" class="hover:text-red focus-ring">Upload</a>
+        <a href="#privasi" class="hover:text-red focus-ring">Privasi</a>
+      </nav>
+      <div class="flex items-center gap-2">
+        <button id="themeToggle" type="button" aria-label="Ganti mode gelap/terang" class="focus-ring shrink-0 w-10 h-10 rounded-full border border-line flex items-center justify-center text-ink/70 hover:text-red hover:border-red transition">
+          <span class="icon-sun inline-flex">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="2"/><path d="M12 2.5V5M12 19V21.5M4.2 4.2L6 6M18 18L19.8 19.8M2.5 12H5M19 12H21.5M4.2 19.8L6 18M18 6L19.8 4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span class="icon-moon inline-flex">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <a href="#upload" class="focus-ring text-sm font-semibold bg-red text-white px-5 py-2.5 rounded-full hover:bg-red-dark transition">Mulai Cek</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO CAROUSEL -->
+  <section class="relative bg-white pt-5 sm:pt-8">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8">
+      <div class="relative pb-8 sm:pb-10" id="heroWrap">
+
+        <!-- rounded card, notched bottom-right corner -->
+        <div class="hero-card relative overflow-hidden bg-red">
+          <div class="carousel-track" id="carouselTrack">
+
+            <!-- Slide 1 -->
+            <div class="carousel-slide relative">
+              <div class="slide-shape"></div>
+              <div class="relative px-6 sm:px-10 py-14 sm:py-20">
+                <p class="font-mono text-xs uppercase tracking-widest text-white/70 mb-4">#TahuSiapaYangPergi</p>
+                <h1 class="font-display text-3xl sm:text-5xl leading-[1.15] font-bold text-white max-w-xl">
+                  Ketahui Siapa yang Tidak Follow Balik
+                </h1>
+                <p class="mt-5 text-white/85 text-sm sm:text-base max-w-md leading-relaxed">
+                  Analisis hubungan following dan followers Instagram kamu secara instan dan akurat — langsung dari perangkatmu, tanpa ribet.
+                </p>
+                <a href="#upload" class="focus-ring inline-flex items-center gap-2 mt-8 bg-white text-red font-semibold text-sm px-6 py-3 rounded-full hover:bg-white/90 transition">Mulai Sekarang</a>
+              </div>
+            </div>
+
+            <!-- Slide 2 -->
+            <div class="carousel-slide relative">
+              <div class="slide-shape"></div>
+              <div class="relative px-6 sm:px-10 py-14 sm:py-20">
+                <p class="font-mono text-xs uppercase tracking-widest text-white/70 mb-4">#OrangSetia</p>
+                <h1 class="font-display text-3xl sm:text-5xl leading-[1.15] font-bold text-white max-w-xl">
+                  Temukan Orang yang Belum Kamu Follow Balik
+                </h1>
+                <p class="mt-5 text-white/85 text-sm sm:text-base max-w-md leading-relaxed">
+                  Balikin nggak cuma nunjukin siapa yang pergi, tapi juga mengapresiasi siapa yang setia mendukung kamu.
+                </p>
+                <a href="#upload" class="focus-ring inline-flex items-center gap-2 mt-8 bg-white text-red font-semibold text-sm px-6 py-3 rounded-full hover:bg-white/90 transition">Mulai Sekarang</a>
+              </div>
+            </div>
+
+            <!-- Slide 3 -->
+            <div class="carousel-slide relative">
+              <div class="slide-shape"></div>
+              <div class="relative px-6 sm:px-10 py-14 sm:py-20">
+                <p class="font-mono text-xs uppercase tracking-widest text-white/70 mb-4">#100PersenPrivat</p>
+                <h1 class="font-display text-3xl sm:text-5xl leading-[1.15] font-bold text-white max-w-xl">
+                  Tanpa Login, Tanpa Kirim Data ke Server
+                </h1>
+                <p class="mt-5 text-white/85 text-sm sm:text-base max-w-md leading-relaxed">
+                  Semua proses jalan sepenuhnya di browser kamu. Kami nggak pernah minta atau nyimpen password Instagram kamu.
+                </p>
+                <a href="#privasi" class="focus-ring inline-flex items-center gap-2 mt-8 bg-white text-red font-semibold text-sm px-6 py-3 rounded-full hover:bg-white/90 transition">Baca Kebijakan Privasi</a>
+              </div>
+            </div>
+
+            <!-- Slide 4 -->
+            <div class="carousel-slide relative">
+              <div class="slide-shape"></div>
+              <div class="relative px-6 sm:px-10 py-14 sm:py-20">
+                <p class="font-mono text-xs uppercase tracking-widest text-white/70 mb-4">#EksporData</p>
+                <h1 class="font-display text-3xl sm:text-5xl leading-[1.15] font-bold text-white max-w-xl">
+                  Simpan dan Kelola Hasil Analisis Kamu
+                </h1>
+                <p class="mt-5 text-white/85 text-sm sm:text-base max-w-md leading-relaxed">
+                  Cari, urutin, lalu ekspor hasilnya ke CSV cuma satu klik — siap dipakai lagi kapan pun kamu butuh.
+                </p>
+                <a href="#upload" class="focus-ring inline-flex items-center gap-2 mt-8 bg-white text-red font-semibold text-sm px-6 py-3 rounded-full hover:bg-white/90 transition">Mulai Sekarang</a>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- concave notch cutout, bottom-right -->
+          <div class="hero-notch" aria-hidden="true"></div>
+
+          <!-- slide counter + progress line, top-right -->
+          <div class="absolute top-5 right-6 sm:top-7 sm:right-9 z-10 flex flex-col items-end gap-2">
+            <span id="slideCounter" class="font-mono text-xs text-white/80">1 / 4</span>
+            <div class="w-14 sm:w-16 h-[3px] rounded-full bg-white/25 overflow-hidden">
+              <div id="progressBar" class="h-full bg-white rounded-full transition-all duration-500 ease-out" style="width:25%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- split arrow pill, nested into the notch -->
+        <div class="hero-arrows absolute bottom-2 right-5 sm:bottom-1 sm:right-7 z-20 flex items-stretch bg-white rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+          <button id="prevSlide" aria-label="Slide sebelumnya" class="focus-ring w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center text-ink/70 hover:text-red hover:bg-surface transition">‹</button>
+          <span class="w-px my-2 bg-line"></span>
+          <button id="nextSlide" aria-label="Slide berikutnya" class="focus-ring w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center text-ink/70 hover:text-red hover:bg-surface transition">›</button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- PANDUAN -->
+  <section id="panduan" class="border-b border-line">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-16">
+      <p class="font-mono text-xs uppercase tracking-widest text-red mb-3">Langkah demi langkah</p>
+      <h2 class="font-display text-xl sm:text-2xl font-bold mb-2">Cara Mengambil Data Followers &amp; Following</h2>
+      <p class="text-mute max-w-xl mb-10 text-sm sm:text-base">Menggunakan fitur ekspor resmi dari Instagram, jadi aman dan nggak melanggar aturan mereka. Ikuti urutan ini persis di aplikasi Instagram kamu.</p>
+
+      <ol class="grid sm:grid-cols-2 gap-4">
+        <li class="flex gap-4 bg-surface border border-line card p-5">
+          <span class="font-mono text-red text-sm font-semibold shrink-0">01</span>
+          <div><p class="font-medium text-sm sm:text-base">Buka Accounts Center</p><p class="text-sm text-mute mt-1">Di profil Instagram, buka Settings → Accounts Center.</p></div>
+        </li>
+        <li class="flex gap-4 bg-surface border border-line card p-5">
+          <span class="font-mono text-red text-sm font-semibold shrink-0">02</span>
+          <div><p class="font-medium text-sm sm:text-base">Your Information and Permissions</p><p class="text-sm text-mute mt-1">Cari dan ketuk menu ini di dalam Accounts Center.</p></div>
+        </li>
+        <li class="flex gap-4 bg-surface border border-line card p-5">
+          <span class="font-mono text-red text-sm font-semibold shrink-0">03</span>
+          <div><p class="font-medium text-sm sm:text-base">Export Your Information</p><p class="text-sm text-mute mt-1">Pilih akun Instagram kamu, lalu ketuk "Create export".</p></div>
+        </li>
+        <li class="flex gap-4 bg-surface border border-line card p-5">
+          <span class="font-mono text-red text-sm font-semibold shrink-0">04</span>
+          <div><p class="font-medium text-sm sm:text-base">Customize Information</p><p class="text-sm text-mute mt-1">Centang hanya <b class="text-ink">Followers and following</b> agar prosesnya lebih cepat.</p></div>
+        </li>
+        <li class="flex gap-4 bg-surface border border-line card p-5">
+          <span class="font-mono text-red text-sm font-semibold shrink-0">05</span>
+          <div><p class="font-medium text-sm sm:text-base">Format: JSON</p><p class="text-sm text-mute mt-1">Pastikan format ekspor JSON, bukan HTML, agar dapat dibaca oleh sistem ini.</p></div>
+        </li>
+        <li class="flex gap-4 bg-surface border border-line card p-5">
+          <span class="font-mono text-red text-sm font-semibold shrink-0">06</span>
+          <div><p class="font-medium text-sm sm:text-base">Tunggu Tautan Unduhan</p><p class="text-sm text-mute mt-1">Instagram akan mengirim notifikasi. Unduh file .zip yang diberikan.</p></div>
+        </li>
+      </ol>
+
+      <div class="mt-6 flex items-start gap-3 bg-red/5 border border-red/20 card p-4 text-sm text-ink/75">
+        <span class="text-red font-semibold">i</span>
+        <p>Kamu bisa langsung upload file <b>.zip</b> hasil download itu di bawah — nggak perlu di-extract manual dulu.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- UPLOAD -->
+  <section id="upload" class="border-b border-line bg-surface">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-16">
+      <p class="font-mono text-xs uppercase tracking-widest text-red mb-3">Langkah terakhir</p>
+      <h2 class="font-display text-xl sm:text-2xl font-bold mb-2">Upload Data Kamu</h2>
+      <p class="text-mute max-w-xl mb-8 text-sm sm:text-base">Drop file .zip hasil export, atau file followers_1.json / following.json satu-satu. Semua diproses langsung di perangkatmu.</p>
+
+      <div id="dropzone" tabindex="0" class="focus-ring group cursor-pointer bg-white border-2 border-dashed border-line card-lg p-10 text-center transition hover:border-red/50">
+        <input id="fileInput" type="file" multiple accept=".zip,.json" class="hidden" />
+        <p class="font-display text-lg font-semibold mb-1">Tarik file ke sini</p>
+        <p class="text-sm text-mute mb-4">atau klik untuk memilih file (.zip / .json)</p>
+        <span class="inline-block font-mono text-xs text-mute/70">Data kamu nggak pernah diunggah ke server</span>
+      </div>
+
+      <div id="fileStatus" class="mt-5 hidden">
+        <div class="flex flex-wrap items-center gap-2" id="fileChips"></div>
+      </div>
+
+      <div id="restoredNote" class="mt-4 hidden flex items-center justify-between gap-3 bg-surface border border-line card p-4">
+        <p class="text-sm text-ink/80">Data dari sesi sebelumnya berhasil dimuat ulang, jadi kamu nggak perlu upload lagi.</p>
+        <button id="clearDataBtn" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Hapus Data</button>
+      </div>
+
+      <div id="parseState" class="mt-4 text-sm text-mute hidden"></div>
+
+      <!-- RESULTS -->
+      <div id="results" class="mt-12 hidden">
+        <div id="dataWarningBanner" class="hidden mb-6 flex items-start gap-3 bg-amber/10 border border-amber/30 text-amber card p-5">
+          <span class="w-8 h-8 rounded-full bg-amber/15 flex items-center justify-center text-sm shrink-0">!</span>
+          <p class="text-sm leading-relaxed"><span id="dataWarningText"></span></p>
+        </div>
+
+        <div id="insightBanner" class="hidden mb-4 flex items-start gap-3 bg-ink text-white card p-5">
+          <span class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-sm shrink-0">%</span>
+          <div class="text-sm leading-relaxed">
+            <p><span id="insightText"></span></p>
+            <p id="growthText" class="hidden text-white/70 text-xs mt-2"></p>
+          </div>
+        </div>
+
+        <div id="milestoneBadge" class="hidden mb-6 inline-flex items-center gap-2 bg-red/10 text-red text-xs font-medium px-4 py-2 rounded-full">
+          <span aria-hidden="true">🏅</span><span id="milestoneText"></span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+          <div class="bg-white border border-line card p-4">
+            <p class="font-mono text-xl sm:text-2xl font-semibold" id="statFollowing">0</p>
+            <p class="text-xs text-mute mt-1">Following</p>
+          </div>
+          <div class="bg-white border border-line card p-4">
+            <p class="font-mono text-xl sm:text-2xl font-semibold" id="statFollowers">0</p>
+            <p class="text-xs text-mute mt-1">Followers</p>
+          </div>
+          <div class="bg-white border border-amber/30 card p-4">
+            <p class="font-mono text-xl sm:text-2xl font-semibold text-amber" id="statNotBack">0</p>
+            <p class="text-xs text-mute mt-1">Tidak follow balik</p>
+          </div>
+          <div class="bg-white border border-mint/30 card p-4">
+            <p class="font-mono text-xl sm:text-2xl font-semibold text-mint" id="statMutual">0</p>
+            <p class="text-xs text-mute mt-1">Saling follow</p>
+          </div>
+        </div>
+
+        <!-- STATISTIK & GRAFIK -->
+        <div class="grid sm:grid-cols-5 gap-3 mb-8">
+          <div class="sm:col-span-2 bg-white border border-line card p-5">
+            <p class="font-display text-sm font-semibold mb-1">Distribusi Following</p>
+            <p class="text-xs text-mute mb-4">Berapa persen yang follow balik kamu.</p>
+            <div class="relative h-52 sm:h-60">
+              <canvas id="chartDistribution"></canvas>
+            </div>
+          </div>
+          <div class="sm:col-span-3 bg-white border border-line card p-5">
+            <p class="font-display text-sm font-semibold mb-1">Aktivitas Follow per Bulan</p>
+            <p class="text-xs text-mute mb-4">Jumlah akun baru yang kamu follow &amp; yang follow kamu, berdasarkan tanggal di data ekspor.</p>
+            <div class="relative h-52 sm:h-60">
+              <canvas id="chartTimeline"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- SAHABAT PALING SETIA -->
+        <div class="bg-white border border-line card p-5 sm:p-6 mb-6" id="loyalSection">
+          <p class="font-display text-sm font-semibold mb-1">Sahabat Paling Setia</p>
+          <p class="text-xs text-mute mb-4">Akun saling follow yang sudah paling lama terhubung sama kamu, berdasarkan tanggal di data ekspor.</p>
+          <div id="loyalList" class="divide-y divide-line border border-line card overflow-hidden"></div>
+          <p id="loyalEmpty" class="hidden text-xs text-mute">Data tanggal nggak tersedia buat sebagian besar akun, jadi peringkat ini belum bisa dihitung.</p>
+        </div>
+
+        <!-- KARTU RINGKASAN (SHAREABLE) -->
+        <div class="bg-white border border-line card p-5 sm:p-6 mb-8" id="shareCardSection">
+          <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+            <div>
+              <p class="font-display text-sm font-semibold mb-1">Kartu Ringkasan</p>
+              <p class="text-xs text-mute max-w-sm">Simpan atau bagikan ringkasan hasil analisis kamu ke Instagram Story. Cuma berisi angka — nggak ada username orang lain, aman dibagikan.</p>
+            </div>
+            <div class="flex items-center gap-2" role="tablist" aria-label="Tema kartu">
+              <button class="theme-btn focus-ring text-xs font-medium px-3 py-1.5 rounded-full border border-line transition" data-theme="red" aria-selected="true">Merah</button>
+              <button class="theme-btn focus-ring text-xs font-medium px-3 py-1.5 rounded-full border border-line transition" data-theme="dark" aria-selected="false">Gelap</button>
+              <button class="theme-btn focus-ring text-xs font-medium px-3 py-1.5 rounded-full border border-line transition" data-theme="gradient" aria-selected="false">Gradient</button>
+            </div>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-6 items-start">
+            <div class="mx-auto sm:mx-0 w-full max-w-[260px] shrink-0">
+              <canvas id="shareCanvas" width="1080" height="1920" class="w-full h-auto rounded-2xl border border-line shadow-sm"></canvas>
+            </div>
+            <div class="flex-1 w-full">
+              <p class="text-sm text-mute mb-4">Ada 3 tema kartu buat kamu pilih. Setelah unduh, tinggal upload manual ke Instagram Story kamu.</p>
+              <div class="flex flex-wrap gap-2">
+                <button id="downloadCardBtn" class="focus-ring text-sm font-medium bg-red text-white px-4 py-2 rounded-full hover:bg-red-dark transition">Unduh PNG</button>
+                <button id="shareCardBtn" class="focus-ring hidden text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Bagikan ke Story</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div role="tablist" class="inline-flex bg-white border border-line rounded-full p-1">
+            <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="notback" aria-selected="true">Tidak Follow Balik</button>
+            <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="orang" aria-selected="false">Belum Kamu Follow Balik</button>
+            <button class="tab-btn focus-ring text-sm font-medium px-4 py-2 rounded-full transition" data-tab="mutual" aria-selected="false">Saling Follow</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 max-w-full">
+            <input id="searchInput" type="text" placeholder="Cari username…" class="focus-ring bg-white border border-line rounded-full px-4 py-2 text-sm w-44 sm:w-56 placeholder:text-mute/50" />
+            <select id="sortSelect" class="focus-ring bg-white border border-line rounded-full px-3 py-2 text-sm">
+              <option value="newest">Terbaru diikuti</option>
+              <option value="oldest">Terlama diikuti</option>
+              <option value="az">A–Z</option>
+            </select>
+            <button id="copyList" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Salin</button>
+            <button id="exportCsv" class="focus-ring text-sm font-medium bg-red text-white px-4 py-2 rounded-full hover:bg-red-dark transition">Ekspor CSV</button>
+            <button id="clearDataBtn2" class="focus-ring text-sm font-medium bg-white border border-line text-ink px-4 py-2 rounded-full hover:border-red hover:text-red transition">Hapus Data</button>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3 bg-amber/10 border border-amber/25 card p-4 text-sm text-ink/75 mb-5">
+          <span class="text-amber font-semibold">i</span>
+          <p>Data ekspor Instagram tidak menyertakan status aktif/nonaktif akun. Klik "Buka Profil" untuk memeriksa secara manual — apabila muncul "Halaman tidak tersedia", akun tersebut kemungkinan sudah nonaktif atau dihapus.</p>
+        </div>
+
+        <div id="listWrap" class="divide-y divide-line border border-line card overflow-hidden bg-white"></div>
+        <p id="emptyState" class="hidden text-center text-mute py-14 text-sm"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVASI -->
+  <section id="privasi" class="border-b border-line">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-16 grid sm:grid-cols-3 gap-8">
+      <div>
+        <p class="font-display text-base font-semibold mb-1">Tanpa Login</p>
+        <p class="text-sm text-mute">Kamu nggak pernah masukin password Instagram di sini. Sistem ini cuma baca file yang kamu upload.</p>
+      </div>
+      <div>
+        <p class="font-display text-base font-semibold mb-1">Diproses di Browser</p>
+        <p class="text-sm text-mute">Pembacaan dan perbandingan data berjalan 100% di perangkatmu. Nggak ada file yang terkirim ke server mana pun.</p>
+      </div>
+      <div>
+        <p class="font-display text-base font-semibold mb-1">Sumber Resmi</p>
+        <p class="text-sm text-mute">Data berasal dari fitur ekspor resmi Instagram, bukan hasil scraping atau otomasi login.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="bg-red-deep text-white">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-8">
+      <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-white/50 pb-6 border-b border-white/10">
+        <span>Balikin — analisis followers &amp; following Instagram kamu.</span>
+        <span>Tidak berafiliasi dengan Instagram atau Meta.</span>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-4 pt-6">
+        <p class="text-xs text-white/60">Dibuat oleh <span class="text-white font-medium">Agung Ma'ruf</span></p>
+        <div class="flex items-center gap-2">
+          <a href="https://www.instagram.com/agungmrf_?igsh=MTlvc3pkajhlaDUwYg==" target="_blank" rel="noopener noreferrer" class="focus-ring inline-flex items-center gap-2 text-xs font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-full transition">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></svg>
+            Instagram
+          </a>
+          <a href="https://www.threads.com/@agungmrf_" target="_blank" rel="noopener noreferrer" class="focus-ring inline-flex items-center gap-2 text-xs font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-full transition">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2C6.5 2 3 6 3 12s3.5 10 9 10c4.2 0 7.3-2.1 8.4-5.7.4-1.3.5-2.6.2-3.9-.4-1.9-1.6-3.3-3.4-3.9-.3-2.4-1.9-4.1-4.6-4.1-2.4 0-4.1 1.3-4.7 3.3l1.9.6c.3-1 1.1-1.8 2.6-1.8 1.6 0 2.5.9 2.7 2.3-.5-.1-1-.1-1.6-.1-3 0-5.1 1.5-5.1 3.9 0 2.1 1.7 3.6 4.1 3.6 2 0 3.4-.9 4.1-2.5.3.6.4 1.3.2 2-.7 2.4-2.9 3.7-6 3.7-4.2 0-6.9-2.9-6.9-8s2.7-8 6.9-8c3.3 0 5.3 1.6 6.1 4.3l1.9-.6C15.9 3.9 13.4 2 10 2Zm.4 9.1c.5 0 1 .1 1.4.1 0 1.9-.8 3.2-2.7 3.2-1.2 0-2.1-.6-2.1-1.7 0-1.2 1.2-1.9 3-1.9.1 0 .3 0 .4.1v.2Z" fill="currentColor"/></svg>
+            Threads
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+<script>
+(function () {
+  // ---- Carousel ----
+  const track = document.getElementById('carouselTrack');
+  const slides = track.children;
+  const counter = document.getElementById('slideCounter');
+  const progressBar = document.getElementById('progressBar');
+  let current = 0;
+  let autoplayTimer = null;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function goTo(i) {
+    current = (i + slides.length) % slides.length;
+    track.style.transform = 'translateX(-' + (current * 100) + '%)';
+    counter.textContent = (current + 1) + ' / ' + slides.length;
+    progressBar.style.width = (((current + 1) / slides.length) * 100) + '%';
+  }
+
+  function startAutoplay() {
+    if (reduceMotion) return;
+    stopAutoplay();
+    autoplayTimer = setInterval(() => goTo(current + 1), 6000);
+  }
+  function stopAutoplay() { if (autoplayTimer) clearInterval(autoplayTimer); }
+
+  document.getElementById('nextSlide').addEventListener('click', () => { goTo(current + 1); startAutoplay(); });
+  document.getElementById('prevSlide').addEventListener('click', () => { goTo(current - 1); startAutoplay(); });
+
+  const heroWrap = document.getElementById('heroWrap');
+  heroWrap.addEventListener('mouseenter', stopAutoplay);
+  heroWrap.addEventListener('mouseleave', startAutoplay);
+
+  let touchX = null;
+  heroWrap.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  heroWrap.addEventListener('touchend', e => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 40) goTo(current + (dx < 0 ? 1 : -1));
+    touchX = null;
+    startAutoplay();
+  }, { passive: true });
+
+  startAutoplay();
+
+  // ---- File handling / comparison logic ----
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileStatus = document.getElementById('fileStatus');
+  const fileChips = document.getElementById('fileChips');
+  const parseState = document.getElementById('parseState');
+  const resultsEl = document.getElementById('results');
+  const listWrap = document.getElementById('listWrap');
+  const emptyState = document.getElementById('emptyState');
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
+  const exportCsvBtn = document.getElementById('exportCsv');
+  const copyListBtn = document.getElementById('copyList');
+  const restoredNote = document.getElementById('restoredNote');
+  const clearDataBtn = document.getElementById('clearDataBtn');
+  const clearDataBtn2 = document.getElementById('clearDataBtn2');
+
+  const STORAGE_KEY = 'balikin_v1';
+  const HISTORY_KEY = 'balikin_history_v1';
+
+  const THEMES = {
+    red:      { bg: '#FFFFFF', bg2: '#FFFFFF', accent: '#E4002B', text: '#1A1A1E', mute: 'rgba(26,26,30,0.55)',   chip: 'rgba(228,0,43,0.07)',   dot: '#FFFFFF' },
+    dark:     { bg: '#121214', bg2: '#121214', accent: '#E4002B', text: '#F5F5F7', mute: 'rgba(245,245,247,0.55)', chip: 'rgba(255,255,255,0.07)', dot: '#F5F5F7' },
+    gradient: { bg: '#E4002B', bg2: '#2B0008', accent: '#FFFFFF', text: '#FFFFFF', mute: 'rgba(255,255,255,0.7)', chip: 'rgba(255,255,255,0.14)', dot: '#E4002B' },
+  };
+  let currentCardTheme = 'red';
+
+  let followingMap = new Map();
+  let followersMap = new Map();
+  let currentTab = 'notback';
+
+  function extractEntries(json) {
+    const results = [];
+    function walk(node) {
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+      } else if (node && typeof node === 'object') {
+        if (Array.isArray(node.string_list_data)) {
+          const sld = node.string_list_data[0] || {};
+          const href = sld.href || node.href || null;
+          let username = (sld.value || node.value || node.username || node.title || '').toString().trim();
+          if (!username && href) {
+            // Some export variants only give a profile URL with no separate
+            // username field — derive it from the last path segment.
+            const parts = href.replace(/\/+$/, '').split('/');
+            username = (parts[parts.length - 1] || '').trim();
+          }
+          if (username) {
+            results.push({
+              username,
+              href: href || ('https://www.instagram.com/' + username),
+              timestamp: sld.timestamp || node.timestamp || null,
+            });
+          }
+        } else {
+          Object.keys(node).forEach(k => walk(node[k]));
+        }
+      }
+    }
+    walk(json);
+    return results;
+  }
+
+  // Instagram usernames are case-insensitive and can occasionally show up with
+  // stray whitespace between export files, which broke the followers/following
+  // match for some accounts. Compare on a normalized key, but keep the original
+  // casing for display.
+  function normKey(username) {
+    return username.trim().toLowerCase();
+  }
+
+  function classify(filename) {
+    // Use only the last path segment so folder names like
+    // "followers_and_following" don't get matched by mistake.
+    const base = filename.toLowerCase().split('/').pop();
+    if (/^following\.json$/.test(base)) return 'following';
+    if (/^followers(_\d+)?\.json$/.test(base)) return 'followers';
+    return null;
+  }
+
+  function mergeInto(map, entries) {
+    entries.forEach(e => {
+      const key = normKey(e.username);
+      if (!map.has(key)) map.set(key, e);
+    });
+  }
+
+  function saveToStorage(chipNames) {
+    try {
+      const payload = {
+        following: [...followingMap.values()],
+        followers: [...followersMap.values()],
+        chips: chipNames,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.error('Gagal menyimpan data ke localStorage', err);
+    }
+  }
+
+  function loadFromStorage() {
+    let raw;
+    try {
+      raw = localStorage.getItem(STORAGE_KEY);
+    } catch (err) {
+      return false;
+    }
+    if (!raw) return false;
+    try {
+      const payload = JSON.parse(raw);
+      followingMap = new Map((payload.following || []).map(e => [normKey(e.username), e]));
+      followersMap = new Map((payload.followers || []).map(e => [normKey(e.username), e]));
+      if (followingMap.size === 0 && followersMap.size === 0) return false;
+
+      (payload.chips || []).forEach(name => addChip(name));
+      parseState.classList.remove('hidden');
+      parseState.textContent = 'Berhasil dibaca: ' + followingMap.size + ' following, ' + followersMap.size + ' followers.';
+      restoredNote.classList.remove('hidden');
+      computeAndRender();
+      return true;
+    } catch (err) {
+      console.error('Gagal memuat data tersimpan', err);
+      return false;
+    }
+  }
+
+  function clearStorage() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
+    followingMap = new Map();
+    followersMap = new Map();
+    fileChips.innerHTML = '';
+    fileStatus.classList.add('hidden');
+    parseState.classList.add('hidden');
+    restoredNote.classList.add('hidden');
+    resultsEl.classList.add('hidden');
+    fileInput.value = '';
+  }
+
+  function addChip(name) {
+    fileStatus.classList.remove('hidden');
+    const chip = document.createElement('span');
+    chip.className = 'font-mono text-xs bg-white border border-line rounded-full px-3 py-1.5 text-ink/70';
+    chip.textContent = '✓ ' + name;
+    fileChips.appendChild(chip);
+  }
+
+  async function handleFiles(fileList) {
+    parseState.classList.remove('hidden');
+    parseState.textContent = 'Membaca file…';
+    restoredNote.classList.add('hidden');
+    const files = Array.from(fileList);
+    const chipNames = [...fileChips.children].map(c => c.textContent.replace(/^✓\s*/, ''));
+
+    for (const file of files) {
+      try {
+        if (file.name.toLowerCase().endsWith('.zip')) {
+          const zip = await JSZip.loadAsync(file);
+          const entries = Object.keys(zip.files).filter(p =>
+            /followers_and_following/i.test(p) && p.toLowerCase().endsWith('.json')
+          );
+          for (const path of entries) {
+            const text = await zip.files[path].async('string');
+            const type = classify(path);
+            if (!type) continue;
+            const json = JSON.parse(text);
+            const entries2 = extractEntries(json);
+            mergeInto(type === 'following' ? followingMap : followersMap, entries2);
+          }
+          addChip(file.name);
+          chipNames.push(file.name);
+        } else if (file.name.toLowerCase().endsWith('.json')) {
+          const type = classify(file.name);
+          const text = await file.text();
+          const json = JSON.parse(text);
+          const entries2 = extractEntries(json);
+          if (type === 'following') mergeInto(followingMap, entries2);
+          else mergeInto(followersMap, entries2);
+          addChip(file.name);
+          chipNames.push(file.name);
+        }
+      } catch (err) {
+        console.error('Gagal membaca file', file.name, err);
+        parseState.textContent = 'Ada file yang gagal dibaca (' + file.name + '). Pastikan formatnya JSON hasil ekspor Instagram.';
+      }
+    }
+
+    if (followingMap.size === 0 && followersMap.size === 0) {
+      parseState.textContent = 'Belum ada data yang terbaca. Cek lagi file yang kamu upload.';
+      return;
+    }
+
+    parseState.textContent = 'Berhasil dibaca: ' + followingMap.size + ' following, ' + followersMap.size + ' followers.';
+    computeAndRender();
+    saveToStorage(chipNames);
+  }
+
+  // ---- Riwayat kunjungan (buat fitur "naik/turun sejak kunjungan terakhir") ----
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (err) { return []; }
+  }
+
+  function pushHistoryEntry(stats) {
+    const history = loadHistory();
+    const last = history[history.length - 1];
+    const changed = !last || last.following !== stats.following || last.followers !== stats.followers || last.mutual !== stats.mutual;
+    if (changed) {
+      history.push({ date: Date.now(), following: stats.following, followers: stats.followers, mutual: stats.mutual, notBack: stats.notBack });
+      while (history.length > 20) history.shift();
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (err) {}
+    }
+    return history;
+  }
+
+  function getPreviousEntry(history) {
+    if (history.length < 2) return null;
+    return history[history.length - 2];
+  }
+
+  // ---- Sahabat paling setia (mutual terlama) ----
+  function computeLoyalList(mutualEntries) {
+    return mutualEntries.map(e => {
+      const key = normKey(e.username);
+      const fEntry = followersMap.get(key);
+      const ts1 = e.timestamp || null;
+      const ts2 = (fEntry && fEntry.timestamp) || null;
+      const since = (ts1 && ts2) ? Math.max(ts1, ts2) : (ts1 || ts2 || null);
+      return { username: e.username, href: e.href, since };
+    }).filter(e => e.since).sort((a, b) => a.since - b.since);
+  }
+
+  function renderLoyalList(mutualEntries) {
+    const loyal = computeLoyalList(mutualEntries).slice(0, 5);
+    const loyalList = document.getElementById('loyalList');
+    const loyalEmpty = document.getElementById('loyalEmpty');
+    loyalList.innerHTML = '';
+    if (loyal.length === 0) {
+      loyalList.classList.add('hidden');
+      loyalEmpty.classList.remove('hidden');
+      return loyal;
+    }
+    loyalList.classList.remove('hidden');
+    loyalEmpty.classList.add('hidden');
+    loyal.forEach((r, i) => {
+      const date = new Date(r.since * 1000).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+      const row = document.createElement('div');
+      row.className = 'row-enter flex items-center justify-between gap-4 px-5 py-4 hover:bg-surface transition';
+      row.style.animationDelay = (i * 15) + 'ms';
+      row.innerHTML =
+        '<div class="flex items-center gap-3 min-w-0">' +
+          '<span class="font-mono text-xs text-mute w-5 shrink-0">#' + (i + 1) + '</span>' +
+          '<div class="min-w-0">' +
+            '<p class="font-mono text-sm truncate">@' + escapeHtml(r.username) + '</p>' +
+            '<p class="text-xs text-mute mt-0.5">Saling follow sejak ' + date + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Buka Profil ↗</a>';
+      loyalList.appendChild(row);
+    });
+    return loyal;
+  }
+
+  // ---- Milestone ----
+  function computeMilestone(followersCount, oldestMutual) {
+    const tiers = [100000, 50000, 10000, 5000, 1000, 500, 100];
+    let tierText = null;
+    for (const t of tiers) {
+      if (followersCount >= t) { tierText = 'Followers kamu tembus ' + t.toLocaleString('id-ID') + '!'; break; }
+    }
+    let loyaltyText = null;
+    if (oldestMutual && oldestMutual.since) {
+      const years = (Date.now() / 1000 - oldestMutual.since) / (365.25 * 24 * 3600);
+      if (years >= 1) {
+        loyaltyText = '@' + oldestMutual.username + ' udah saling follow sama kamu ' + years.toFixed(1) + ' tahun.';
+      }
+    }
+    return { tierText, loyaltyText };
+  }
+
+  function computeAndRender() {
+    const notBack = [...followingMap.values()].filter(e => !followersMap.has(normKey(e.username)));
+    const orang = [...followersMap.values()].filter(e => !followingMap.has(normKey(e.username)));
+    const mutual = [...followingMap.values()].filter(e => followersMap.has(normKey(e.username)));
+
+    document.getElementById('statFollowing').textContent = followingMap.size;
+    document.getElementById('statFollowers').textContent = followersMap.size;
+    document.getElementById('statNotBack').textContent = notBack.length;
+    document.getElementById('statMutual').textContent = mutual.length;
+
+    const dataWarningBanner = document.getElementById('dataWarningBanner');
+    const dataWarningText = document.getElementById('dataWarningText');
+    const bigger = Math.max(followingMap.size, followersMap.size);
+    const smaller = Math.min(followingMap.size, followersMap.size);
+    if (bigger >= 50 && smaller > 0 && smaller / bigger < 0.15) {
+      const smallerLabel = followersMap.size < followingMap.size ? 'followers' : 'following';
+      dataWarningText.textContent = 'Jumlah ' + smallerLabel + ' yang terbaca (' + smaller + ') kelihatannya jauh lebih sedikit dari seharusnya. Ini biasanya bukan salah upload — file export Instagram kamu kemungkinan memang tidak lengkap. Coba minta ulang data dari Instagram (Accounts Center → Download your information), pilih format JSON dan rentang tanggal "All time", lalu tunggu sampai file-nya benar-benar selesai sebelum diunduh.';
+      dataWarningBanner.classList.remove('hidden');
+    } else {
+      dataWarningBanner.classList.add('hidden');
+    }
+
+    const insightBanner = document.getElementById('insightBanner');
+    const insightText = document.getElementById('insightText');
+    if (followingMap.size > 0) {
+      const pct = Math.round((mutual.length / followingMap.size) * 100);
+      insightText.textContent = pct + '% dari akun yang kamu follow ternyata follow balik — ' + notBack.length + ' akun lainnya belum.';
+      insightBanner.classList.remove('hidden');
+    }
+
+    window.__data = { notback: notBack, orang, mutual };
+    resultsEl.classList.remove('hidden');
+    renderList();
+    renderCharts(notBack.length, mutual.length);
+
+    // ---- Riwayat / growth banner ----
+    const stats = { following: followingMap.size, followers: followersMap.size, mutual: mutual.length, notBack: notBack.length };
+    const history = pushHistoryEntry(stats);
+    const prevEntry = getPreviousEntry(history);
+
+    const growthText = document.getElementById('growthText');
+    if (prevEntry && prevEntry.following > 0 && stats.following > 0) {
+      const prevPct = Math.round((prevEntry.mutual / prevEntry.following) * 100);
+      const curPct = Math.round((stats.mutual / stats.following) * 100);
+      const diff = curPct - prevPct;
+      const prevDate = new Date(prevEntry.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      if (diff !== 0) {
+        growthText.textContent = 'Follow-back rate kamu ' + (diff > 0 ? 'naik' : 'turun') + ' ' + Math.abs(diff) + '% sejak kunjungan terakhir (' + prevDate + ').';
+      } else {
+        growthText.textContent = 'Follow-back rate kamu masih sama dengan kunjungan terakhir (' + prevDate + ').';
+      }
+      growthText.classList.remove('hidden');
+    } else {
+      growthText.classList.add('hidden');
+    }
+
+    // ---- Sahabat paling setia ----
+    const loyalTop = renderLoyalList(mutual);
+
+    // ---- Milestone ----
+    const milestone = computeMilestone(stats.followers, loyalTop[0]);
+    const milestoneBadge = document.getElementById('milestoneBadge');
+    const milestoneText = document.getElementById('milestoneText');
+    if (milestone.tierText || milestone.loyaltyText) {
+      milestoneText.textContent = milestone.tierText || milestone.loyaltyText;
+      milestoneBadge.classList.remove('hidden');
+    } else {
+      milestoneBadge.classList.add('hidden');
+    }
+
+    // ---- Kartu ringkasan ----
+    window.__cardData = { stats, prevEntry, loyalTop, milestone, generatedAt: Date.now() };
+    drawShareCard();
+  }
+
+  // ---- Statistik & Grafik ----
+  let distributionChart = null;
+  let timelineChart = null;
+
+  function isDarkMode() { return document.documentElement.classList.contains('dark'); }
+  function chartTextColor() { return isDarkMode() ? 'rgba(245,245,247,0.75)' : '#1A1A1E'; }
+  function chartMuteColor() { return isDarkMode() ? 'rgba(245,245,247,0.5)' : '#6B6B75'; }
+  function chartGridColor() { return isDarkMode() ? 'rgba(255,255,255,0.08)' : '#E7E5EA'; }
+
+  function computeMonthlyCounts() {
+    const counts = {};
+    function bump(map, key) {
+      if (!counts[key]) counts[key] = { following: 0, followers: 0 };
+      counts[key][map]++;
+    }
+    followingMap.forEach(e => {
+      if (!e.timestamp) return;
+      const d = new Date(e.timestamp * 1000);
+      bump('following', d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+    });
+    followersMap.forEach(e => {
+      if (!e.timestamp) return;
+      const d = new Date(e.timestamp * 1000);
+      bump('followers', d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+    });
+    const keys = Object.keys(counts).sort();
+    const labels = keys.map(k => {
+      const [y, m] = k.split('-');
+      return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+    });
+    return {
+      labels,
+      following: keys.map(k => counts[k].following),
+      followers: keys.map(k => counts[k].followers),
+      hasData: keys.length > 0,
+    };
+  }
+
+  function renderCharts(notBackCount, mutualCount) {
+    if (typeof Chart === 'undefined') return;
+
+    // --- Doughnut: distribusi following ---
+    const distEl = document.getElementById('chartDistribution');
+    const distData = {
+      labels: ['Saling follow', 'Tidak follow balik'],
+      datasets: [{
+        data: [mutualCount, notBackCount],
+        backgroundColor: ['#1E8E5A', '#C97A00'],
+        borderWidth: 0,
+      }],
+    };
+    if (distributionChart) {
+      distributionChart.data = distData;
+      distributionChart.options.plugins.legend.labels.color = chartTextColor();
+      distributionChart.update();
+    } else {
+      distributionChart = new Chart(distEl, {
+        type: 'doughnut',
+        data: distData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: chartTextColor(), boxWidth: 10, padding: 14, font: { size: 11 } } },
+          },
+        },
+      });
+    }
+
+    // --- Line: aktivitas follow per bulan ---
+    const monthly = computeMonthlyCounts();
+    const timeEl = document.getElementById('chartTimeline');
+    const timeData = {
+      labels: monthly.hasData ? monthly.labels : ['Tidak ada data tanggal'],
+      datasets: [
+        { label: 'Following baru', data: monthly.hasData ? monthly.following : [0], borderColor: '#E4002B', backgroundColor: 'rgba(228,0,43,0.12)', tension: 0.3, fill: true, pointRadius: 0, borderWidth: 2 },
+        { label: 'Followers baru', data: monthly.hasData ? monthly.followers : [0], borderColor: '#1E8E5A', backgroundColor: 'rgba(30,142,90,0.12)', tension: 0.3, fill: true, pointRadius: 0, borderWidth: 2 },
+      ],
+    };
+    if (timelineChart) {
+      timelineChart.data = timeData;
+      applyTimelineTheme(timelineChart);
+      timelineChart.update();
+    } else {
+      timelineChart = new Chart(timeEl, {
+        type: 'line',
+        data: timeData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: chartTextColor(), boxWidth: 10, padding: 14, font: { size: 11 } } },
+          },
+          scales: {
+            x: { ticks: { color: chartMuteColor(), maxRotation: 0, autoSkip: true, font: { size: 10 } }, grid: { color: chartGridColor() } },
+            y: { beginAtZero: true, ticks: { color: chartMuteColor(), precision: 0, font: { size: 10 } }, grid: { color: chartGridColor() } },
+          },
+        },
+      });
+      applyTimelineTheme(timelineChart);
+    }
+  }
+
+  function applyTimelineTheme(chart) {
+    chart.options.plugins.legend.labels.color = chartTextColor();
+    chart.options.scales.x.ticks.color = chartMuteColor();
+    chart.options.scales.y.ticks.color = chartMuteColor();
+    chart.options.scales.x.grid.color = chartGridColor();
+    chart.options.scales.y.grid.color = chartGridColor();
+  }
+
+  function refreshChartsTheme() {
+    if (distributionChart) {
+      distributionChart.options.plugins.legend.labels.color = chartTextColor();
+      distributionChart.update();
+    }
+    if (timelineChart) {
+      applyTimelineTheme(timelineChart);
+      timelineChart.update();
+    }
+  }
+
+  // ---- Kartu Ringkasan (shareable canvas card) ----
+  function formatDateID(ts) {
+    return new Date(ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let yy = y;
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+        ctx.fillText(line, x, yy);
+        line = words[n] + ' ';
+        yy += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, x, yy);
+    return yy;
+  }
+
+  function drawShareCard() {
+    const canvas = document.getElementById('shareCanvas');
+    if (!canvas || !window.__cardData) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const theme = THEMES[currentCardTheme];
+    const { stats, loyalTop, milestone } = window.__cardData;
+    const pad = 90;
+
+    // Background
+    if (currentCardTheme === 'gradient') {
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, theme.bg);
+      grad.addColorStop(1, theme.bg2);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = theme.bg;
+    }
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle decorative circle
+    ctx.save();
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = theme.accent;
+    ctx.beginPath();
+    ctx.arc(W - 40, 40, 280, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    let y = 150;
+
+    // Brand mark
+    ctx.fillStyle = theme.accent;
+    ctx.beginPath(); ctx.arc(pad + 26, y, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = theme.dot;
+    ctx.beginPath(); ctx.arc(pad + 26, y, 10, 0, Math.PI * 2); ctx.fill();
+
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = theme.text;
+    ctx.font = '600 34px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Balikin', pad + 70, y);
+    ctx.textBaseline = 'alphabetic';
+
+    y += 100;
+    ctx.font = '800 56px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = theme.text;
+    y = wrapText(ctx, 'Ringkasan Instagram Kamu', pad, y, W - pad * 2, 64);
+
+    y += 56;
+    ctx.font = '500 28px Inter, sans-serif';
+    ctx.fillStyle = theme.mute;
+    ctx.fillText(formatDateID(window.__cardData.generatedAt), pad, y);
+
+    // Follow-back percentage ring
+    const pct = stats.following > 0 ? Math.round((stats.mutual / stats.following) * 100) : 0;
+    const cx = W / 2, cy = y + 260, r = 200;
+    ctx.lineWidth = 34;
+    ctx.strokeStyle = theme.chip;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = theme.accent;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (pct / 100) * Math.PI * 2);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = theme.text;
+    ctx.font = '800 96px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(pct + '%', cx, cy - 10);
+    ctx.font = '500 30px Inter, sans-serif';
+    ctx.fillStyle = theme.mute;
+    ctx.fillText('follow balik kamu', cx, cy + 50);
+    ctx.textAlign = 'left';
+
+    y = cy + r + 100;
+
+    // Stat grid
+    const statItems = [
+      { label: 'Following', value: stats.following },
+      { label: 'Followers', value: stats.followers },
+      { label: 'Saling Follow', value: stats.mutual },
+      { label: 'Tidak Follow Balik', value: stats.notBack },
+    ];
+    const colW = (W - pad * 2 - 30) / 2;
+    const rowH = 170;
+    statItems.forEach((item, i) => {
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = pad + col * (colW + 30);
+      const yy = y + row * (rowH + 24);
+      roundRect(ctx, x, yy, colW, rowH, 28);
+      ctx.fillStyle = theme.chip;
+      ctx.fill();
+      ctx.fillStyle = theme.text;
+      ctx.font = '700 52px "JetBrains Mono", monospace';
+      ctx.fillText(item.value.toLocaleString('id-ID'), x + 32, yy + 66);
+      ctx.font = '500 26px Inter, sans-serif';
+      ctx.fillStyle = theme.mute;
+      ctx.fillText(item.label, x + 32, yy + 112);
+    });
+    y = y + rowH * 2 + 24 + 74;
+
+    // Sahabat paling setia
+    if (loyalTop && loyalTop.length > 0) {
+      ctx.font = '600 30px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = theme.text;
+      ctx.fillText('Sahabat Paling Setia', pad, y);
+      y += 50;
+      loyalTop.slice(0, 3).forEach((r) => {
+        ctx.font = '500 30px "JetBrains Mono", monospace';
+        ctx.fillStyle = theme.accent;
+        ctx.fillText('@' + r.username, pad, y);
+        y += 46;
+      });
+      y += 20;
+    }
+
+    // Milestone
+    if (milestone && (milestone.tierText || milestone.loyaltyText)) {
+      const badgeText = milestone.tierText || milestone.loyaltyText;
+      ctx.font = '500 26px Inter, sans-serif';
+      ctx.fillStyle = theme.mute;
+      wrapText(ctx, badgeText, pad, y, W - pad * 2, 36);
+    }
+
+    // Footer watermark
+    ctx.font = '500 24px Inter, sans-serif';
+    ctx.fillStyle = theme.mute;
+    ctx.fillText('Dibuat dengan Balikin — cek followers & following tanpa login', pad, H - 70);
+  }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { if (window.__cardData) drawShareCard(); });
+  }
+
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.theme-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
+      btn.setAttribute('aria-selected', 'true');
+      currentCardTheme = btn.dataset.theme;
+      drawShareCard();
+    });
+  });
+
+  const downloadCardBtn = document.getElementById('downloadCardBtn');
+  downloadCardBtn.addEventListener('click', () => {
+    const canvas = document.getElementById('shareCanvas');
+    const link = document.createElement('a');
+    link.download = 'balikin-ringkasan.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+
+  const shareCardBtn = document.getElementById('shareCardBtn');
+  if (navigator.share && navigator.canShare) {
+    shareCardBtn.classList.remove('hidden');
+    shareCardBtn.addEventListener('click', async () => {
+      try {
+        const canvas = document.getElementById('shareCanvas');
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const file = new File([blob], 'balikin-ringkasan.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Ringkasan Instagram Kamu — Balikin' });
+        }
+      } catch (err) {
+        // Pengguna membatalkan share, atau share tidak didukung — abaikan.
+      }
+    });
+  }
+
+  function renderList() {
+    let rows = (window.__data && window.__data[currentTab]) || [];
+    const q = searchInput.value.trim().toLowerCase();
+    if (q) rows = rows.filter(r => r.username.toLowerCase().includes(q));
+
+    const sort = sortSelect.value;
+    rows = rows.slice().sort((a, b) => {
+      if (sort === 'az') return a.username.localeCompare(b.username);
+      const ta = a.timestamp || 0, tb = b.timestamp || 0;
+      return sort === 'oldest' ? ta - tb : tb - ta;
+    });
+
+    listWrap.innerHTML = '';
+    if (rows.length === 0) {
+      emptyState.textContent = q ? 'Tidak ada username yang cocok dengan "' + q + '".' : 'Belum ada data pada kategori ini.';
+      emptyState.classList.remove('hidden');
+      listWrap.classList.add('hidden');
+      return;
+    }
+    emptyState.classList.add('hidden');
+    listWrap.classList.remove('hidden');
+
+    rows.forEach((r, i) => {
+      const date = r.timestamp ? new Date(r.timestamp * 1000).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Tanggal tidak diketahui';
+      const row = document.createElement('div');
+      row.className = 'row-enter flex items-center justify-between gap-4 px-5 py-4 hover:bg-surface transition';
+      row.style.animationDelay = (i * 15) + 'ms';
+      row.innerHTML =
+        '<div class="min-w-0">' +
+          '<p class="font-mono text-sm truncate">@' + escapeHtml(r.username) + '</p>' +
+          '<p class="text-xs text-mute mt-0.5">Diikuti sejak ' + date + '</p>' +
+        '</div>' +
+        '<a href="' + r.href + '" target="_blank" rel="noopener noreferrer" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Buka Profil ↗</a>';
+      listWrap.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function exportCsv() {
+    const rows = (window.__data && window.__data[currentTab]) || [];
+    const header = 'username,profile_url,followed_since\n';
+    const body = rows.map(r => {
+      const date = r.timestamp ? new Date(r.timestamp * 1000).toISOString().slice(0, 10) : '';
+      return [r.username, r.href, date].join(',');
+    }).join('\n');
+    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'balikin-' + currentTab + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function copyList() {
+    const rows = (window.__data && window.__data[currentTab]) || [];
+    const text = rows.map(r => '@' + r.username).join('\n');
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const original = copyListBtn.textContent;
+      copyListBtn.textContent = 'Tersalin ✓';
+      setTimeout(() => { copyListBtn.textContent = original; }, 1600);
+    }).catch(() => {});
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  ['dragenter', 'dragover'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drop-active'); })
+  );
+  ['dragleave', 'drop'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drop-active'); })
+  );
+  dropzone.addEventListener('drop', e => { if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
+      btn.setAttribute('aria-selected', 'true');
+      currentTab = btn.dataset.tab;
+      renderList();
+    });
+  });
+
+  searchInput.addEventListener('input', renderList);
+  sortSelect.addEventListener('change', renderList);
+  exportCsvBtn.addEventListener('click', exportCsv);
+  copyListBtn.addEventListener('click', copyList);
+  clearDataBtn.addEventListener('click', clearStorage);
+  clearDataBtn2.addEventListener('click', clearStorage);
+
+  // Muat otomatis data dari sesi sebelumnya (kalau ada), jadi kalau
+  // halaman di-refresh, hasil analisis nggak hilang dan nggak perlu upload ulang.
+  loadFromStorage();
+
+  // ---- Dark mode toggle ----
+  const themeToggle = document.getElementById('themeToggle');
+  themeToggle.addEventListener('click', () => {
+    const html = document.documentElement;
+    html.classList.toggle('dark');
+    try { localStorage.setItem('balikin_theme', html.classList.contains('dark') ? 'dark' : 'light'); } catch (e) {}
+    refreshChartsTheme();
+  });
+
+  // ---- PWA: daftarkan service worker (biar bisa dipasang & dipakai offline) ----
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
