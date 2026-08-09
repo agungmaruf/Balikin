@@ -193,9 +193,11 @@
     transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s ease;
   }
   .swipe-card.dragging { transition: none; cursor: grabbing; }
-  .swipe-card.behind-1 { transform: scale(0.96) translateY(10px); opacity: .7; z-index: 1; }
-  .swipe-card.behind-2 { transform: scale(0.92) translateY(18px); opacity: .4; z-index: 0; }
+  .swipe-card.behind-1 { transform: scale(0.96) translateY(10px); opacity: 1; z-index: 1; background: #EFEDF1; border-color: #DEDCE2; }
+  .swipe-card.behind-2 { transform: scale(0.92) translateY(18px); opacity: 1; z-index: 0; background: #E3E1E7; border-color: #D2D0D8; }
   html.dark .swipe-card { background: #1C1C20; border-color: rgba(255,255,255,0.08); }
+  html.dark .swipe-card.behind-1 { background: #232327; border-color: rgba(255,255,255,0.1); }
+  html.dark .swipe-card.behind-2 { background: #2A2A2F; border-color: rgba(255,255,255,0.12); }
   .swipe-avatar {
     width: 72px; height: 72px; border-radius: 999px; background: #F7F6F8; border: 1px solid #E7E5EA;
     display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif;
@@ -822,6 +824,13 @@
 
   function clearStorage() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
+    // Ikut hapus tanda swipe (unfollow/keep/nanti) & streak, biar data lama
+    // nggak nyangkut lagi ketika file diupload ulang.
+    try { localStorage.removeItem(SWIPE_DECISIONS_KEY); } catch (err) {}
+    try { localStorage.removeItem(SWIPE_STREAK_KEY); } catch (err) {}
+    if (typeof swipeDecisions !== 'undefined') swipeDecisions = {};
+    if (typeof swipeHistoryStack !== 'undefined') swipeHistoryStack = [];
+    if (typeof swipeStreakBadge !== 'undefined' && swipeStreakBadge) swipeStreakBadge.classList.add('hidden');
     followingMap = new Map();
     followersMap = new Map();
     fileChips.innerHTML = '';
