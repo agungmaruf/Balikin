@@ -232,6 +232,7 @@
   /* ===== Swipe Mode ===== */
   .view-toggle-btn[aria-selected="true"] { color: #FFFFFF; background: #1A1A1E; }
   .view-toggle-btn[aria-selected="false"] { color: #6B6B75; background: transparent; }
+  html.dark .view-toggle-btn[aria-selected="true"] { color: #FFFFFF !important; background: #E4002B !important; }
   html.dark .view-toggle-btn[aria-selected="false"] { color: rgba(245,245,247,0.55) !important; }
   .swipe-stage { position: relative; height: 380px; touch-action: none; }
   .swipe-card {
@@ -470,19 +471,19 @@
           <p class="font-display font-semibold text-sm text-mute mb-5">Kebanyakan Aplikasi Sejenis</p>
           <ul class="space-y-4 text-sm">
             <li class="flex gap-3">
-              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="shrink-0 w-5 h-5 rounded-full bg-red/10 flex items-center justify-center text-red text-xs mt-0.5">✕</span>
               <span class="text-ink/70">Minta kamu login / masukin email &amp; password Instagram langsung ke aplikasinya</span>
             </li>
             <li class="flex gap-3">
-              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="shrink-0 w-5 h-5 rounded-full bg-red/10 flex items-center justify-center text-red text-xs mt-0.5">✕</span>
               <span class="text-ink/70">Data followers &amp; following kamu dikirim dan disimpan di server pihak ketiga</span>
             </li>
             <li class="flex gap-3">
-              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="shrink-0 w-5 h-5 rounded-full bg-red/10 flex items-center justify-center text-red text-xs mt-0.5">✕</span>
               <span class="text-ink/70">Berisiko akun ke-hack atau ke-lock Instagram karena dianggap aktivitas otomatis mencurigakan</span>
             </li>
             <li class="flex gap-3">
-              <span class="shrink-0 w-5 h-5 rounded-full bg-line flex items-center justify-center text-mute text-xs mt-0.5">✕</span>
+              <span class="shrink-0 w-5 h-5 rounded-full bg-red/10 flex items-center justify-center text-red text-xs mt-0.5">✕</span>
               <span class="text-ink/70">Klaim bisa "unfollow otomatis" — yang sebenarnya melanggar Terms of Service Instagram</span>
             </li>
           </ul>
@@ -1726,7 +1727,6 @@
       const checked = selectedKeys.has(key) ? 'checked' : '';
       row.innerHTML =
         '<input type="checkbox" class="row-select-chk focus-ring shrink-0 w-4 h-4 rounded accent-red" ' + checked + ' aria-label="Pilih @' + escapeHtml(r.username) + '" />' +
-        avatarHtml(r.username) +
         '<div class="min-w-0 flex-1">' +
           '<p class="font-mono text-sm truncate">@' + escapeHtml(r.username) + '</p>' +
           '<p class="text-xs text-mute mt-0.5">Diikuti sejak ' + date + '</p>' +
@@ -1742,23 +1742,6 @@
     });
 
     updateBulkToolbar();
-  }
-
-  // Avatar inisial: data ekspor Instagram nggak menyertakan foto profil sama
-  // sekali (cek extractEntries — cuma ada username/href/timestamp), dan
-  // fetch foto dari IG live butuh proxy pihak ketiga yang bertentangan sama
-  // prinsip privacy-first app ini (semua data cuma di localStorage). Jadi
-  // dipakai inisial + warna konsisten per-username sebagai gantinya.
-  const AVATAR_PALETTE = ['#E4002B', '#1E8E5A', '#C97A00', '#2B6CB0', '#7C3AED', '#0F766E', '#B91C1C', '#4338CA'];
-  function avatarColor(username) {
-    let hash = 0;
-    for (let i = 0; i < username.length; i++) hash = (hash * 31 + username.charCodeAt(i)) >>> 0;
-    return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
-  }
-  function avatarHtml(username) {
-    const initial = (username[0] || '?').toUpperCase();
-    const color = avatarColor(username);
-    return '<div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style="background:' + color + '">' + escapeHtml(initial) + '</div>';
   }
 
   function escapeHtml(s) {
