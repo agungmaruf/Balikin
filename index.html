@@ -603,9 +603,7 @@
                yang kepotong di luar layar), sejajar lagi mulai sm: -->
           <div id="listToolsGroup" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <select id="filterSelect" class="focus-ring w-full sm:w-auto shrink-0 bg-white border border-line rounded-full px-3.5 py-2.5 sm:py-2 text-sm">
-              <option value="hide_unfollow">Sembunyikan yang sudah Unfollow</option>
               <option value="all">Tampilkan Semua</option>
-              <option value="undecided">Belum Direview</option>
               <option value="unfollow">Hanya Ditandai Unfollow</option>
               <option value="keep">Hanya Ditandai Keep</option>
               <option value="later">Hanya Nanti</option>
@@ -1580,9 +1578,7 @@
 
     if (currentTab === 'notback') {
       const filterVal = filterSelect.value;
-      if (filterVal === 'hide_unfollow') rows = rows.filter(r => getSwipeDecision(r.username) !== 'unfollow');
-      else if (filterVal === 'undecided') rows = rows.filter(r => !getSwipeDecision(r.username));
-      else if (filterVal === 'unfollow') rows = rows.filter(r => getSwipeDecision(r.username) === 'unfollow');
+      if (filterVal === 'unfollow') rows = rows.filter(r => getSwipeDecision(r.username) === 'unfollow');
       else if (filterVal === 'keep') rows = rows.filter(r => getSwipeDecision(r.username) === 'keep');
       else if (filterVal === 'later') rows = rows.filter(r => getSwipeDecision(r.username) === 'later');
       // 'all' -> no filtering
