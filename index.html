@@ -20,6 +20,28 @@
      (mis. localStorage penuh) supaya user tahu ada yang gagal tersimpan. -->
 <div id="toastHost" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[999] flex flex-col items-center gap-2 pointer-events-none"></div>
 
+<!-- Install PWA banner: browser (Chrome/Edge) nangkep event beforeinstallprompt
+     dan biasanya cuma nampilin ikon kecil di address bar yang gampang
+     kelewat, jadi kita tawarin lebih jelas di sini. Di iOS Safari,
+     beforeinstallprompt nggak pernah ada sama sekali, jadi ditampilkan
+     instruksi manual "Share > Add to Home Screen" sebagai gantinya. -->
+<div id="installBanner" class="hidden fixed inset-x-3 bottom-3 z-[997] sm:left-auto sm:right-4 sm:bottom-4 sm:w-96">
+  <div class="flex items-start gap-3 bg-white border border-line card shadow-2xl p-4">
+    <img src="icons/icon-192.png" alt="" class="w-10 h-10 rounded-xl shrink-0" />
+    <div class="min-w-0 flex-1">
+      <p class="font-display text-sm font-semibold">Pasang Balikin</p>
+      <p id="installBannerText" class="text-xs text-mute mt-0.5">Akses lebih cepat dari layar utama, bisa dipakai offline.</p>
+      <div class="flex items-center gap-2 mt-3">
+        <button id="installBannerAction" class="focus-ring shrink-0 text-xs font-medium bg-red text-white px-3.5 py-2 rounded-full hover:bg-red-dark transition">Install</button>
+        <button id="installBannerLater" class="focus-ring shrink-0 text-xs font-medium text-mute hover:text-ink px-2 py-2 transition">Nanti aja</button>
+      </div>
+    </div>
+    <button id="installBannerClose" class="focus-ring shrink-0 text-mute hover:text-ink -mt-1 -mr-1 p-1.5 rounded-full" aria-label="Tutup">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+</div>
+
 <script>
   (function () {
     try {
@@ -163,20 +185,24 @@
   html.dark #upload [class*="bg-surface"] { background: #1C1C20 !important; }
 
   html.dark #panduan [class*="bg-white"],
-  html.dark #upload [class*="bg-white"] { background: #1C1C20 !important; }
+  html.dark #upload [class*="bg-white"],
+  html.dark #installBanner [class*="bg-white"] { background: #1C1C20 !important; }
 
   html.dark #panduan [class*="border-line"],
   html.dark #upload [class*="border-line"],
+  html.dark #installBanner [class*="border-line"],
   html.dark #panduan [class*="divide-line"] > *,
   html.dark #upload [class*="divide-line"] > * { border-color: rgba(255,255,255,0.08) !important; }
 
   html.dark #panduan [class*="text-ink"],
   html.dark #upload [class*="text-ink"],
-  html.dark #privasi [class*="text-ink"] { color: #F5F5F7 !important; }
+  html.dark #privasi [class*="text-ink"],
+  html.dark #installBanner [class*="text-ink"] { color: #F5F5F7 !important; }
 
   html.dark #panduan [class*="text-mute"],
   html.dark #upload [class*="text-mute"],
-  html.dark #privasi [class*="text-mute"] { color: rgba(245,245,247,0.55) !important; }
+  html.dark #privasi [class*="text-mute"],
+  html.dark #installBanner [class*="text-mute"] { color: rgba(245,245,247,0.55) !important; }
 
   html.dark #upload input,
   html.dark #upload select { background: #1C1C20 !important; color: #F5F5F7 !important; }
@@ -2160,6 +2186,67 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     });
   }
+
+  // ---- PWA: banner install kustom ----
+  // Alasan bikin ini: browser Chromium biasanya cuma nampilin ikon kecil di
+  // address bar buat event beforeinstallprompt, gampang kelewat. Di iOS
+  // Safari, beforeinstallprompt malah nggak pernah ada sama sekali — jadi
+  // kita kasih instruksi manual buat kasus itu.
+  (function initInstallBanner() {
+    const INSTALL_DISMISS_KEY = 'balikin_install_dismissed_at';
+    const DISMISS_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000; // jangan nagih lagi selama 14 hari kalau ditutup
+
+    const banner = document.getElementById('installBanner');
+    const bannerText = document.getElementById('installBannerText');
+    const actionBtn = document.getElementById('installBannerAction');
+    const laterBtn = document.getElementById('installBannerLater');
+    const closeBtn = document.getElementById('installBannerClose');
+    if (!banner) return;
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true; // iOS Safari
+    if (isStandalone) return; // udah ke-install, nggak perlu nawarin lagi
+
+    let dismissedAt = null;
+    try { dismissedAt = Number(localStorage.getItem(INSTALL_DISMISS_KEY)) || null; } catch (e) {}
+    if (dismissedAt && Date.now() - dismissedAt < DISMISS_COOLDOWN_MS) return;
+
+    function dismiss() {
+      banner.classList.add('hidden');
+      try { localStorage.setItem(INSTALL_DISMISS_KEY, String(Date.now())); } catch (e) {}
+    }
+    closeBtn.addEventListener('click', dismiss);
+    laterBtn.addEventListener('click', dismiss);
+
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      banner.classList.remove('hidden');
+    });
+
+    if (isIos) {
+      // iOS nggak punya beforeinstallprompt, jadi banner ditampilkan langsung
+      // dengan instruksi manual (setelah sedikit delay biar nggak langsung
+      // nyerbu pas halaman baru kebuka).
+      bannerText.textContent = 'Tap tombol Bagikan di Safari, lalu pilih "Add to Home Screen" biar bisa dibuka kayak aplikasi.';
+      actionBtn.textContent = 'Oke, mengerti';
+      actionBtn.addEventListener('click', dismiss);
+      setTimeout(() => banner.classList.remove('hidden'), 2500);
+    } else {
+      actionBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) { dismiss(); return; }
+        banner.classList.add('hidden');
+        deferredPrompt.prompt();
+        try { await deferredPrompt.userChoice; } catch (e) {}
+        deferredPrompt = null;
+      });
+    }
+
+    window.addEventListener('appinstalled', dismiss);
+  })();
 })();
 </script>
 </body>
