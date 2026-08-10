@@ -16,32 +16,6 @@
 <link rel="icon" href="icons/icon-192.png" />
 
 <!-- Apply saved theme before first paint to avoid a light/dark flash -->
-<!-- Toast: notifikasi ringan buat error yang sebelumnya silent catch
-     (mis. localStorage penuh) supaya user tahu ada yang gagal tersimpan. -->
-<div id="toastHost" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[999] flex flex-col items-center gap-2 pointer-events-none"></div>
-
-<!-- Install PWA banner: browser (Chrome/Edge) nangkep event beforeinstallprompt
-     dan biasanya cuma nampilin ikon kecil di address bar yang gampang
-     kelewat, jadi kita tawarin lebih jelas di sini. Di iOS Safari,
-     beforeinstallprompt nggak pernah ada sama sekali, jadi ditampilkan
-     instruksi manual "Share > Add to Home Screen" sebagai gantinya. -->
-<div id="installBanner" class="hidden fixed inset-x-3 bottom-3 z-[997] sm:left-auto sm:right-4 sm:bottom-4 sm:w-96">
-  <div class="flex items-start gap-3 bg-white border border-line card shadow-2xl p-4">
-    <img src="icons/icon-192.png" alt="" class="w-10 h-10 rounded-xl shrink-0" />
-    <div class="min-w-0 flex-1">
-      <p class="font-display text-sm font-semibold">Pasang Balikin</p>
-      <p id="installBannerText" class="text-xs text-mute mt-0.5">Akses lebih cepat dari layar utama, bisa dipakai offline.</p>
-      <div class="flex items-center gap-2 mt-3">
-        <button id="installBannerAction" class="focus-ring shrink-0 text-xs font-medium bg-red text-white px-3.5 py-2 rounded-full hover:bg-red-dark transition">Install</button>
-        <button id="installBannerLater" class="focus-ring shrink-0 text-xs font-medium text-mute hover:text-ink px-2 py-2 transition">Nanti aja</button>
-      </div>
-    </div>
-    <button id="installBannerClose" class="focus-ring shrink-0 text-mute hover:text-ink -mt-1 -mr-1 p-1.5 rounded-full" aria-label="Tutup">
-      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-    </button>
-  </div>
-</div>
-
 <script>
   (function () {
     try {
@@ -59,6 +33,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
+  if (typeof tailwind === 'undefined') {
+    // Tailwind CDN gagal/lambat kemuat (mis. koneksi lemot pas PWA baru
+    // dibuka). Tanpa guard ini, baris di bawah lempar ReferenceError yang
+    // sebelumnya (walau nggak menghentikan skrip app utama) tetap bikin
+    // console error dan styling nggak pernah kekonfigurasi ulang kalau
+    // tailwind sempat kemuat belakangan.
+    window.tailwind = { config: {} };
+  }
   tailwind.config = {
     theme: {
       extend: {
@@ -325,10 +307,116 @@
   .decision-tag.keep { background: rgba(30,142,90,0.1); color: #1E8E5A; }
   .decision-tag.later { background: rgba(201,122,0,0.1); color: #C97A00; }
   @media (prefers-reduced-motion: reduce) { .swipe-card { transition: none !important; } }
+
+  /* ===== Splash screen =====
+     Inline & dependency-free on purpose: it must render the instant the HTML
+     parses, without waiting for the Tailwind CDN (or anything else external)
+     to load. This is also what keeps it from ever getting stuck — see the
+     hide logic at the bottom of the page. */
+  #splashScreen {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    background: #FFFFFF;
+    transition: opacity .4s ease, visibility .4s ease;
+  }
+  #splashScreen.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  #splashScreen .splash-mark {
+    width: 64px; height: 64px; border-radius: 999px;
+    background: #E4002B;
+    display: flex; align-items: center; justify-content: center;
+    animation: splash-pulse 1.6s ease-in-out infinite;
+  }
+  #splashScreen .splash-mark span { width: 16px; height: 16px; border-radius: 999px; background: #ffffff; }
+  #splashScreen .splash-title {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 800; font-size: 22px; letter-spacing: -0.01em; color: #1A1A1E;
+  }
+  #splashScreen .splash-tagline {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 12px; color: #6B6B75;
+  }
+  @keyframes splash-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: .85; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #splashScreen { transition: none !important; }
+    #splashScreen .splash-mark { animation: none !important; }
+  }
+  html.dark #splashScreen { background: #121214; }
+  html.dark #splashScreen .splash-title { color: #F5F5F7; }
+  html.dark #splashScreen .splash-tagline { color: #9A9AA2; }
 </style>
 
 </head>
 <body class="font-body text-ink antialiased">
+
+  <!-- Splash screen: nutupin layar sampai app-nya beneran siap, biar transisi
+       dari splash native OS (dari manifest icon + theme_color) ke konten app
+       kelihatan nyambung, bukan lompat ke halaman kosong/belum ke-style. -->
+  <div id="splashScreen" aria-hidden="true">
+    <div class="splash-mark"><span></span></div>
+    <p class="splash-title">Balikin</p>
+    <p class="splash-tagline">Menyiapkan analisis kamu…</p>
+  </div>
+  <script>
+    (function () {
+      var splash = document.getElementById('splashScreen');
+      if (!splash) return;
+      var shownAt = Date.now();
+      var minVisibleMs = 500;   // biar nggak cuma kedip kalau app-nya udah siap duluan
+      var hardTimeoutMs = 4000; // jaring pengaman: splash WAJIB hilang paling lambat segini,
+                                 // apapun yang terjadi (koneksi lambat, CDN gagal, dll.)
+      var hidden = false;
+
+      function hide() {
+        if (hidden) return;
+        hidden = true;
+        splash.classList.add('splash-hide');
+        setTimeout(function () { splash.remove(); }, 450);
+      }
+
+      function hideWhenReady() {
+        var elapsed = Date.now() - shownAt;
+        var wait = Math.max(0, minVisibleMs - elapsed);
+        setTimeout(hide, wait);
+      }
+
+      if (document.readyState === 'complete') {
+        hideWhenReady();
+      } else {
+        window.addEventListener('load', hideWhenReady);
+      }
+      setTimeout(hide, hardTimeoutMs);
+    })();
+  </script>
+
+  <!-- Toast: notifikasi ringan buat error yang sebelumnya silent catch
+       (mis. localStorage penuh) supaya user tahu ada yang gagal tersimpan. -->
+  <div id="toastHost" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[999] flex flex-col items-center gap-2 pointer-events-none"></div>
+
+  <!-- Install PWA banner: browser (Chrome/Edge) nangkep event beforeinstallprompt
+       dan biasanya cuma nampilin ikon kecil di address bar yang gampang
+       kelewat, jadi kita tawarin lebih jelas di sini. Di iOS Safari,
+       beforeinstallprompt nggak pernah ada sama sekali, jadi ditampilkan
+       instruksi manual "Share > Add to Home Screen" sebagai gantinya. -->
+  <div id="installBanner" class="hidden fixed inset-x-3 bottom-3 z-[997] sm:left-auto sm:right-4 sm:bottom-4 sm:w-96">
+    <div class="flex items-start gap-3 bg-white border border-line card shadow-2xl p-4">
+      <img src="icons/icon-192.png" alt="" class="w-10 h-10 rounded-xl shrink-0" />
+      <div class="min-w-0 flex-1">
+        <p class="font-display text-sm font-semibold">Pasang Balikin</p>
+        <p id="installBannerText" class="text-xs text-mute mt-0.5">Akses lebih cepat dari layar utama, bisa dipakai offline.</p>
+        <div class="flex items-center gap-2 mt-3">
+          <button id="installBannerAction" class="focus-ring shrink-0 text-xs font-medium bg-red text-white px-3.5 py-2 rounded-full hover:bg-red-dark transition">Install</button>
+          <button id="installBannerLater" class="focus-ring shrink-0 text-xs font-medium text-mute hover:text-ink px-2 py-2 transition">Nanti aja</button>
+        </div>
+      </div>
+      <button id="installBannerClose" class="focus-ring shrink-0 text-mute hover:text-ink -mt-1 -mr-1 p-1.5 rounded-full" aria-label="Tutup">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+  </div>
 
   <!-- NAV -->
   <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
@@ -2306,3 +2394,4 @@
 </script>
 </body>
 </html>
+
