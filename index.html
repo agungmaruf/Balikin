@@ -212,7 +212,7 @@
   html.dark #themeToggle .icon-moon { display: inline-flex; }
 
   /* ===== Swipe Mode ===== */
-  .view-toggle-btn[aria-selected="true"] { color: #FFFFFF; background: #1A1A1E; }
+  .view-toggle-btn[aria-selected="true"] { color: #FFFFFF; background: #E4002B; }
   .view-toggle-btn[aria-selected="false"] { color: #6B6B75; background: transparent; }
   html.dark .view-toggle-btn[aria-selected="true"] { color: #FFFFFF !important; background: #E4002B !important; }
   html.dark .view-toggle-btn[aria-selected="false"] { color: rgba(245,245,247,0.55) !important; }
@@ -445,7 +445,7 @@
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
           </span>
         </button>
-        <a href="#upload" class="focus-ring text-sm font-semibold bg-red text-white px-5 py-2.5 rounded-full hover:bg-red-dark transition">Mulai Cek</a>
+        <a href="#upload" class="focus-ring text-sm font-semibold bg-red text-white px-5 py-2.5 rounded-full hover:bg-red-dark transition">Mulai Sekarang</a>
       </div>
     </div>
   </header>
@@ -694,6 +694,21 @@
 
         <div id="milestoneBadge" class="hidden mb-6 inline-flex items-center gap-2 bg-red/10 text-red text-xs font-medium px-4 py-2 rounded-full">
           <span aria-hidden="true">🏅</span><span id="milestoneText"></span>
+        </div>
+
+        <!-- PERUBAHAN SEJAK KUNJUNGAN TERAKHIR (diff unfollower spesifik) -->
+        <div id="unfollowerDiffSection" class="hidden mb-6 bg-white border border-line card p-5 sm:p-6">
+          <p class="font-display text-sm font-semibold mb-1">Perubahan Sejak Kunjungan Terakhir</p>
+          <p id="unfollowerDiffMeta" class="text-xs text-mute mb-4"></p>
+          <div id="unfollowerDiffLeftWrap" class="hidden mb-4">
+            <p class="text-xs font-medium text-amber mb-2">Berhenti follow kamu</p>
+            <div id="unfollowerDiffLeftList" class="divide-y divide-line border border-line card overflow-hidden"></div>
+          </div>
+          <div id="unfollowerDiffJoinedWrap" class="hidden">
+            <p class="text-xs font-medium text-mint mb-2">Followers baru</p>
+            <div id="unfollowerDiffJoinedList" class="divide-y divide-line border border-line card overflow-hidden"></div>
+          </div>
+          <p id="unfollowerDiffEmpty" class="hidden text-xs text-mute">Nggak ada perubahan followers sejak kunjungan terakhir.</p>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
@@ -1288,13 +1303,17 @@
     try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (err) { return []; }
   }
 
-  function pushHistoryEntry(stats) {
+  function pushHistoryEntry(stats, followersUsernames) {
     const history = loadHistory();
     const last = history[history.length - 1];
     const changed = !last || last.following !== stats.following || last.followers !== stats.followers || last.mutual !== stats.mutual;
     if (changed) {
-      history.push({ date: Date.now(), following: stats.following, followers: stats.followers, mutual: stats.mutual, notBack: stats.notBack });
-      while (history.length > 20) history.shift();
+      // followersList disimpan biar kunjungan berikutnya bisa nunjukin siapa
+      // spesifiknya yang berhenti follow / baru follow, bukan cuma angkanya.
+      // History-nya dibatasin lebih pendek dari sebelumnya (8, bukan 20) karena
+      // sekarang tiap entri bawa daftar username, bukan cuma 4 angka.
+      history.push({ date: Date.now(), following: stats.following, followers: stats.followers, mutual: stats.mutual, notBack: stats.notBack, followersList: followersUsernames || [] });
+      while (history.length > 8) history.shift();
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (err) {}
     }
     return history;
@@ -1303,6 +1322,65 @@
   function getPreviousEntry(history) {
     if (history.length < 2) return null;
     return history[history.length - 2];
+  }
+
+  // ---- Diff followers spesifik sejak kunjungan terakhir ----
+  function computeFollowerDiff(prevEntry, currentFollowersMap) {
+    if (!prevEntry || !Array.isArray(prevEntry.followersList) || prevEntry.followersList.length === 0) return null;
+    const prevSet = new Set(prevEntry.followersList.map(normKey));
+    const left = prevEntry.followersList.filter(u => !currentFollowersMap.has(normKey(u)));
+    const joined = [...currentFollowersMap.values()].filter(e => !prevSet.has(normKey(e.username)));
+    return { left, joined };
+  }
+
+  function renderDiffRow(username, href) {
+    const row = document.createElement('div');
+    row.className = 'row-enter flex items-center justify-between gap-4 px-5 py-3 hover:bg-surface transition';
+    row.innerHTML =
+      '<p class="font-mono text-sm truncate">@' + escapeHtml(username) + '</p>' +
+      '<a href="' + href + '" target="_blank" rel="noopener noreferrer" class="focus-ring shrink-0 text-xs font-medium border border-line px-3 py-1.5 rounded-full hover:border-red hover:text-red transition">Buka Profil ↗</a>';
+    return row;
+  }
+
+  function renderFollowerDiff(diff, prevDate) {
+    const section = document.getElementById('unfollowerDiffSection');
+    const meta = document.getElementById('unfollowerDiffMeta');
+    const leftWrap = document.getElementById('unfollowerDiffLeftWrap');
+    const joinedWrap = document.getElementById('unfollowerDiffJoinedWrap');
+    const leftList = document.getElementById('unfollowerDiffLeftList');
+    const joinedList = document.getElementById('unfollowerDiffJoinedList');
+    const empty = document.getElementById('unfollowerDiffEmpty');
+
+    if (!diff) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    meta.textContent = 'Dibandingkan dengan data terakhir kamu cek pada ' + prevDate + '.';
+    leftList.innerHTML = '';
+    joinedList.innerHTML = '';
+
+    const MAX_ROWS = 30;
+    if (diff.left.length > 0) {
+      leftWrap.classList.remove('hidden');
+      diff.left.slice(0, MAX_ROWS).forEach(username => {
+        leftList.appendChild(renderDiffRow(username, 'https://www.instagram.com/' + username));
+      });
+    } else {
+      leftWrap.classList.add('hidden');
+    }
+
+    if (diff.joined.length > 0) {
+      joinedWrap.classList.remove('hidden');
+      diff.joined.slice(0, MAX_ROWS).forEach(e => {
+        joinedList.appendChild(renderDiffRow(e.username, e.href));
+      });
+    } else {
+      joinedWrap.classList.add('hidden');
+    }
+
+    empty.classList.toggle('hidden', !(diff.left.length === 0 && diff.joined.length === 0));
   }
 
   // ---- Sahabat paling setia (mutual terlama) ----
@@ -1374,10 +1452,10 @@
     const orang = [...followersMap.values()].filter(e => !followingMap.has(normKey(e.username)));
     const mutual = [...followingMap.values()].filter(e => followersMap.has(normKey(e.username)));
 
-    document.getElementById('statFollowing').textContent = followingMap.size;
-    document.getElementById('statFollowers').textContent = followersMap.size;
-    document.getElementById('statNotBack').textContent = notBack.length;
-    document.getElementById('statMutual').textContent = mutual.length;
+    document.getElementById('statFollowing').textContent = followingMap.size.toLocaleString('id-ID');
+    document.getElementById('statFollowers').textContent = followersMap.size.toLocaleString('id-ID');
+    document.getElementById('statNotBack').textContent = notBack.length.toLocaleString('id-ID');
+    document.getElementById('statMutual').textContent = mutual.length.toLocaleString('id-ID');
 
     const dataWarningBanner = document.getElementById('dataWarningBanner');
     const dataWarningText = document.getElementById('dataWarningText');
@@ -1408,7 +1486,7 @@
 
     // ---- Riwayat / growth banner ----
     const stats = { following: followingMap.size, followers: followersMap.size, mutual: mutual.length, notBack: notBack.length };
-    const history = pushHistoryEntry(stats);
+    const history = pushHistoryEntry(stats, [...followersMap.values()].map(e => e.username));
     const prevEntry = getPreviousEntry(history);
 
     const growthText = document.getElementById('growthText');
@@ -1425,6 +1503,14 @@
       growthText.classList.remove('hidden');
     } else {
       growthText.classList.add('hidden');
+    }
+
+    // ---- Diff followers spesifik (siapa yang berhenti/baru follow) ----
+    if (prevEntry) {
+      const prevDate = new Date(prevEntry.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      renderFollowerDiff(computeFollowerDiff(prevEntry, followersMap), prevDate);
+    } else {
+      document.getElementById('unfollowerDiffSection').classList.add('hidden');
     }
 
     // ---- Sahabat paling setia ----
@@ -2394,4 +2480,3 @@
 </script>
 </body>
 </html>
-
